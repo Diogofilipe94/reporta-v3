@@ -1,12 +1,13 @@
 import CustomTabBar from '@/components/CustomTabBar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Modal, ScrollView, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, TextInput, ScrollView, ActivityIndicator, SafeAreaView } from 'react-native';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import MapView, { Marker } from 'react-native-maps';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons'; // Make sure to install this package
 
 type Category = {
   id: number;
@@ -14,7 +15,7 @@ type Category = {
 }
 
 export default function NovoScreen() {
-  const [location, setLocation] = useState('');
+  const [locationText, setLocationText] = useState('');
   const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [photo, setPhoto] = useState('');
   const [photoURI, setPhotoURI] = useState('');
@@ -22,20 +23,18 @@ export default function NovoScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [showLocationOptions, setShowLocationOptions] = useState(false);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
-  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
 
   const router = useRouter();
 
-  // Buscar categorias da API quando o componente é montado
+  // Fetch categories when component mounts
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  // Função para buscar categorias da API
+  // Function to fetch categories from the API
   const fetchCategories = async () => {
     try {
       setFetchingCategories(true);
@@ -64,13 +63,13 @@ export default function NovoScreen() {
     }
   };
 
-  // Solicita permissão e obtém localização atual
+  // Request permission and get current location
   const getCurrentLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
-        Alert.alert('Permissão negada', 'É necessário dar permissão para acessar sua localização.');
+        Alert.alert('Permission denied', 'Location permission is required.');
         return;
       }
 
@@ -84,73 +83,55 @@ export default function NovoScreen() {
       };
 
       setLocationCoords(locationData);
-      setSelectedLocation(locationData);
 
-      // Formatando a localização para exibição e armazenamento
-      const locationString = `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`;
-      setLocation(locationString);
-      setModalVisible(false);
+      // Get address from coordinates if needed
+      try {
+        const reverseGeocode = await Location.reverseGeocodeAsync(locationData);
+        if (reverseGeocode && reverseGeocode.length > 0) {
+          const address = reverseGeocode[0];
+          const formattedAddress = `${address.street || ''}, ${address.city || ''}, ${address.region || ''}`;
+          setLocationText(formattedAddress);
+        } else {
+          // Fallback to coordinate string
+          setLocationText(`${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
+        }
+      } catch (error) {
+        console.error('Error in reverse geocoding:', error);
+        setLocationText(`${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
+      }
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível obter sua localização.');
+      Alert.alert('Error', 'Could not get your location.');
       console.error(error);
     }
   };
 
-  // Mostrar modal com opções de localização (antes do mapa)
-  const showLocationOptions = () => {
-    setMapVisible(false); // Garante que o mapa não será exibido inicialmente
-    setModalVisible(true);
+  // Toggle category selection
+  const toggleCategorySelection = (categoryId: number) => {
+    setSelectedCategories(prevSelected => {
+      // If already selected, remove it
+      if (prevSelected.includes(categoryId)) {
+        return prevSelected.filter(id => id !== categoryId);
+      }
+      // Otherwise, add it
+      else {
+        return [...prevSelected, categoryId];
+      }
+    });
   };
 
-  // Função para escolher localização no mapa
-  const chooseOnMap = () => {
-    setMapVisible(true);
+  // Define colors from the app theme
+  const colors = {
+    text: '#11181C',
+    background: '#fff',
+    tint: '#0a7ea4',
+    icon: '#687076',
   };
 
-  // Manipula a seleção no mapa
-  const handleMapPress = (event: any) => {
-    const coords = event.nativeEvent.coordinate;
-    setSelectedLocation(coords);
-  };
-
-  // Confirma a localização selecionada no mapa
-  const confirmMapSelection = () => {
-    if (selectedLocation) {
-      setLocationCoords(selectedLocation);
-
-      // Formatando a localização para exibição e armazenamento
-      const locationString = `${selectedLocation.latitude.toFixed(6)}, ${selectedLocation.longitude.toFixed(6)}`;
-      setLocation(locationString);
-      setModalVisible(false);
-      setMapVisible(false);
-    } else {
-      Alert.alert('Selecione uma localização', 'Toque no mapa para selecionar uma localização.');
-    }
-  };
-
-  // Funções para capturar e selecionar imagens
+  // Take photo using camera
   const takePhoto = async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: "images", // Atualizado para evitar o warning de depreciação
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8, // Reduzido para ajudar a manter abaixo de 2MB
-      });
-
-      if (!result.canceled) {
-        await processImageForUpload(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error('Erro ao tirar foto:', error);
-      Alert.alert('Erro', 'Não foi possível tirar a foto.');
-    }
-  };
-
-  const pickImage = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: "images", // Atualizado para evitar o warning de depreciação
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -160,15 +141,34 @@ export default function NovoScreen() {
         await processImageForUpload(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Erro ao selecionar imagem:', error);
-      Alert.alert('Erro', 'Não foi possível selecionar a imagem.');
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Could not take photo.');
     }
   };
 
-  // Função para processar a imagem e garantir que atenda aos requisitos
+  // Pick image from gallery
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        await processImageForUpload(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error selecting image:', error);
+      Alert.alert('Error', 'Could not select image.');
+    }
+  };
+
+  // Process image to ensure it meets requirements
   const processImageForUpload = async (uri: string) => {
     try {
-      // Verificar tipo de arquivo
+      // Check file type
       const fileName = uri.split('/').pop() || '';
       const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
 
@@ -177,60 +177,31 @@ export default function NovoScreen() {
         return;
       }
 
-      // Verificar tamanho do arquivo
+      // Check file size
       const fileInfo = await FileSystem.getInfoAsync(uri);
 
       if (fileInfo.exists) {
         const fileSizeInMB = fileInfo.size / (1024 * 1024);
         console.log(`Tamanho da imagem: ${fileSizeInMB.toFixed(2)}MB`);
 
-        if (fileSizeInMB > 1.9) { // Reduzido um pouco para garantir
+        if (fileSizeInMB > 1.9) { // Slightly reduced to ensure
           Alert.alert('Arquivo muito grande', 'A imagem não pode ter mais que 2MB. Por favor, escolha outra imagem.');
           return;
         }
       }
 
-      // Armazenar apenas o URI para uso futuro
+      // Store URI for future use
       setPhotoURI(uri);
-      setPhoto(uri); // Para manter a consistência com as outras partes do código
-      setPhotoModalVisible(false);
+      setPhoto(uri); // For consistency with other parts of the code
     } catch (error) {
       console.error('Erro ao processar imagem:', error);
       Alert.alert('Erro', 'Ocorreu um problema ao processar a imagem.');
     }
   };
 
-  const showPhotoOptions = () => {
-    setPhotoModalVisible(true);
-  };
-
-  const toggleCategorySelection = (categoryId: number) => {
-    setSelectedCategories(prevSelected => {
-      // Se já estiver selecionada, remove
-      if (prevSelected.includes(categoryId)) {
-        return prevSelected.filter(id => id !== categoryId);
-      }
-      // Senão, adiciona
-      else {
-        return [...prevSelected, categoryId];
-      }
-    });
-  };
-
-  const showCategoryModal = () => {
-    setCategoryModalVisible(true);
-  };
-
-  const getCategoryNames = () => {
-    return selectedCategories
-      .map(id => categories.find(cat => cat.id === id)?.category)
-      .filter(Boolean)
-      .join(', ');
-  };
-
-  async function CreateReport() {
+  async function createReport() {
     try {
-      if (!location) {
+      if (!locationCoords || !locationText) {
         Alert.alert('Erro', 'Por favor, selecione uma localização');
         return;
       }
@@ -249,18 +220,19 @@ export default function NovoScreen() {
       const token = await AsyncStorage.getItem('token');
 
       try {
-        // O backend está configurado para receber um arquivo usando multipart/form-data
+        // Backend is configured to receive a file using multipart/form-data
         const formData = new FormData();
 
-        // Adicionar a localização como string
-        formData.append('location', location);
+        // Add location as a string (either using the displayed text or the coordinates)
+        const locationString = locationText || `${locationCoords.latitude.toFixed(6)}, ${locationCoords.longitude.toFixed(6)}`;
+        formData.append('location', locationString);
 
-        // Adicionar categorias como array
+        // Add categories as array
         selectedCategories.forEach(categoryId => {
           formData.append('category_id[]', categoryId.toString());
         });
 
-        // Adicionar a foto como arquivo
+        // Add photo as file
         const fileName = photoURI.split('/').pop() || 'photo.jpg';
         const match = /\.(\w+)$/.exec(fileName);
         const type = match ? `image/${match[1]}` : 'image/jpeg';
@@ -271,50 +243,50 @@ export default function NovoScreen() {
           type
         } as any);
 
-        console.log('Enviando dados para a API:', {
-          location,
+        console.log('Sending data to API:', {
+          location: locationString,
           category_id: selectedCategories,
-          photo: "(arquivo de imagem)"
+          photo: "(image file)"
         });
 
-        // Enviar usando FormData
+        // Send using FormData
         const response = await fetch('http://127.0.0.1:8000/api/reports', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
-            // Não definir Content-Type quando usar FormData
+            // Don't set Content-Type when using FormData
           },
           body: formData
         });
 
         const data = await response.json();
-        console.log('Resposta da API:', data);
+        console.log('API Response:', data);
 
         if (response.ok) {
-          Alert.alert('Sucesso', 'Report criado com sucesso!');
-          setLocation('');
+          Alert.alert('Success', 'Report created successfully!');
+          setLocationText('');
           setPhoto('');
           setPhotoURI('');
           setSelectedCategories([]);
           setLocationCoords(null);
           router.push("/(app)/(tabs)");
         } else {
-          console.error('Erro na API:', data);
+          console.error('API Error:', data);
           if (data.messages) {
             const errorMessages = Object.values(data.messages).flat().join('\n');
-            Alert.alert('Erro de validação', errorMessages);
+            Alert.alert('Validation Error', errorMessages);
           } else {
-            Alert.alert('Erro', data.error || 'Erro ao criar report');
+            Alert.alert('Error', data.error || 'Error creating report');
           }
         }
       } catch (error) {
-        console.error('Erro na requisição:', error);
-        Alert.alert('Erro de conexão', 'Não foi possível conectar ao servidor.');
+        console.error('Request error:', error);
+        Alert.alert('Connection Error', 'Could not connect to server.');
       }
     } catch (error) {
-      console.error('Erro geral:', error);
-      Alert.alert('Erro', 'Ocorreu um erro ao criar o report');
+      console.error('General error:', error);
+      Alert.alert('Error', 'An error occurred while creating the report');
     } finally {
       setIsLoading(false);
     }
@@ -322,267 +294,249 @@ export default function NovoScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Criar Novo Report</Text>
-
-        <TouchableOpacity
-          style={styles.locationButton}
-          onPress={showLocationOptions}
-        >
-          <Text style={styles.locationButtonText}>
-            {location ? 'Mudar Localização' : 'Selecionar Localização'}
-          </Text>
-        </TouchableOpacity>
-
-        {locationCoords ? (
-          <View style={styles.locationInfo}>
-            <Text style={styles.locationLabel}>Localização selecionada:</Text>
-            <View style={styles.miniMapContainer}>
-              <MapView
-                style={styles.miniMap}
-                region={{
-                  latitude: locationCoords.latitude,
-                  longitude: locationCoords.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
-                rotateEnabled={false}
-                pitchEnabled={false}
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.content}>
+            {/* Location Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Localização</Text>
+              <TouchableOpacity
+                style={styles.locationSelectButton}
+                onPress={() => setShowLocationOptions(true)}
               >
-                <Marker
-                  coordinate={{
-                    latitude: locationCoords.latitude,
-                    longitude: locationCoords.longitude,
-                  }}
-                />
-              </MapView>
+                <Text style={styles.locationSelectText}>
+                  {locationText ? 'Alterar localização' : 'Selecionar localização'}
+                </Text>
+                <Ionicons name="location" size={24} color="#fff" />
+              </TouchableOpacity>
+
+              {locationText && (
+                <View style={styles.locationInfoContainer}>
+                  <Text style={styles.locationInfoText}>{locationText}</Text>
+                </View>
+              )}
+
+              {locationCoords && (
+                <View style={styles.miniMapContainer}>
+                  <MapView
+                    style={styles.miniMap}
+                    region={{
+                      latitude: locationCoords.latitude,
+                      longitude: locationCoords.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: locationCoords.latitude,
+                        longitude: locationCoords.longitude,
+                      }}
+                    />
+                  </MapView>
+                </View>
+              )}
             </View>
+
+            {/* Categories Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Categorias</Text>
+              {fetchingCategories ? (
+                <ActivityIndicator size="small" color="#4B0082" />
+              ) : (
+                <View style={styles.categoryChipsContainer}>
+                  {categories.map(category => (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[
+                        styles.categoryChip,
+                        selectedCategories.includes(category.id) && styles.selectedCategoryChip
+                      ]}
+                      onPress={() => toggleCategorySelection(category.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          selectedCategories.includes(category.id) && styles.selectedCategoryChipText
+                        ]}
+                      >
+                        {category.category}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Photo Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Foto</Text>
+              <TouchableOpacity
+                style={styles.photoUploadContainer}
+                onPress={photoURI ? undefined : () => setPhotoModalVisible(true)}
+              >
+                {photoURI ? (
+                  <View style={styles.photoContainer}>
+                    <Image
+                      source={{ uri: photoURI }}
+                      style={styles.photoPreview}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.changePhotoButton}
+                      onPress={() => setPhotoModalVisible(true)}
+                    >
+                      <Text style={styles.changePhotoText}>Alterar foto</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.photoPlaceholder}>
+                    <Ionicons name="camera" size={50} color="#687076" />
+                    <Text style={styles.photoPlaceholderText}>Adicionar foto</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[styles.submitButton, isLoading && styles.disabledButton]}
+              onPress={createReport}
+              disabled={isLoading}
+            >
+              <Ionicons name="save-outline" size={24} color="#fff" />
+              <Text style={styles.submitButtonText}>
+                {isLoading ? 'A guardar...' : 'Guardar'}
+              </Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
+        </ScrollView>
 
-        <TouchableOpacity
-          style={styles.photoButton}
-          onPress={showPhotoOptions}
-        >
-          <Text style={styles.photoButtonText}>
-            {photoURI ? 'Mudar Foto' : 'Adicionar Foto'}
-          </Text>
-        </TouchableOpacity>
-
-        {photoURI && (
-          <View style={styles.photoPreviewContainer}>
-            <Image
-              source={{ uri: photoURI }}
-              style={styles.photoPreview}
-              resizeMode="cover"
-            />
-          </View>
-        )}
-
-        <TouchableOpacity
-          style={styles.categoryButton}
-          onPress={showCategoryModal}
-        >
-          <Text style={styles.categoryButtonText}>
-            {selectedCategories.length > 0 ? 'Editar Categorias' : 'Selecionar Categorias'}
-          </Text>
-        </TouchableOpacity>
-
-        {selectedCategories.length > 0 && (
-          <View style={styles.categoryInfo}>
-            <Text style={styles.categoryLabel}>Categorias selecionadas:</Text>
-            <Text style={styles.categoryText}>{getCategoryNames()}</Text>
-          </View>
-        )}
-
-        <TouchableOpacity
-          style={[styles.submitButton, isLoading && styles.disabledButton]}
-          onPress={CreateReport}
-          disabled={isLoading}
-        >
-          <Text style={styles.submitButtonText}>
-            {isLoading ? 'A enviar...' : 'Criar Report'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Modal de Localização */}
-      <Modal
-        animationType="fade"
-        transparent={false}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          {!mapVisible ? (
-            // Exibe as opções de localização
-            <View style={styles.optionsModalContent}>
+        {/* Location Options Modal */}
+        {showLocationOptions && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Escolha uma opção</Text>
 
               <TouchableOpacity
-                style={styles.fullOptionButton}
-                onPress={getCurrentLocation}
+                style={styles.modalButton}
+                onPress={() => {
+                  getCurrentLocation();
+                  setShowLocationOptions(false);
+                }}
               >
-                <Text style={styles.optionText}>Usar minha localização atual</Text>
+                <Text style={styles.modalButtonText}>Usar minha localização atual</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.fullOptionButton}
-                onPress={chooseOnMap}
+                style={styles.modalButton}
+                onPress={() => {
+                  setMapVisible(true);
+                  setShowLocationOptions(false);
+                }}
               >
-                <Text style={styles.optionText}>Escolher uma localização no mapa</Text>
+                <Text style={styles.modalButtonText}>Escolher uma localização no mapa</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.fullOptionButton, styles.cancelButton]}
-                onPress={() => setModalVisible(false)}
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowLocationOptions(false)}
               >
-                <Text style={styles.optionText}>Cancelar</Text>
+                <Text style={styles.modalButtonText}>Cancelar</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            // Exibe o mapa para seleção
+          </View>
+        )}
+
+        {/* Map Selection Modal */}
+        {mapVisible && (
+          <View style={styles.modalOverlay}>
             <View style={styles.mapModalContent}>
               <Text style={styles.modalTitle}>Toque no mapa para escolher a localização</Text>
 
-              <View style={styles.mapContainer}>
+              <View style={styles.fullMapContainer}>
                 <MapView
-                  style={styles.map}
+                  style={styles.fullMap}
                   initialRegion={{
-                    latitude: selectedLocation?.latitude || 41.1579, // Porto, Portugal como padrão
-                    longitude: selectedLocation?.longitude || -8.6291,
+                    latitude: locationCoords?.latitude || 41.1579,
+                    longitude: locationCoords?.longitude || -8.6291,
                     latitudeDelta: 0.0922,
                     longitudeDelta: 0.0421,
                   }}
-                  onPress={handleMapPress}
+                  onPress={(event) => {
+                    const coords = event.nativeEvent.coordinate;
+                    setLocationCoords(coords);
+                    setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+                  }}
                 >
-                  {selectedLocation && (
+                  {locationCoords && (
                     <Marker
                       coordinate={{
-                        latitude: selectedLocation.latitude,
-                        longitude: selectedLocation.longitude,
+                        latitude: locationCoords.latitude,
+                        longitude: locationCoords.longitude,
                       }}
                     />
                   )}
                 </MapView>
               </View>
 
-              <View style={styles.buttonContainer}>
+              <View style={styles.buttonRow}>
                 <TouchableOpacity
-                  style={[styles.fullOptionButton, styles.confirmButton]}
-                  onPress={confirmMapSelection}
+                  style={[styles.modalButton, styles.confirmButton]}
+                  onPress={() => setMapVisible(false)}
                 >
-                  <Text style={styles.optionText}>Confirmar</Text>
+                  <Text style={styles.modalButtonText}>Confirmar</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
-                  style={[styles.fullOptionButton, styles.cancelButton]}
-                  onPress={() => {
-                    setMapVisible(false); // Volta para as opções de localização
-                  }}
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setMapVisible(false)}
                 >
-                  <Text style={styles.optionText}>Voltar</Text>
+                  <Text style={styles.modalButtonText}>Cancelar</Text>
                 </TouchableOpacity>
               </View>
             </View>
-          )}
-        </View>
-      </Modal>
-
-      {/* Modal para escolha de foto */}
-      <Modal
-        animationType="fade"
-        transparent={false}
-        visible={photoModalVisible}
-        onRequestClose={() => setPhotoModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.optionsModalContent}>
-            <Text style={styles.modalTitle}>Adicionar Foto</Text>
-
-            <TouchableOpacity
-              style={styles.fullOptionButton}
-              onPress={takePhoto}
-            >
-              <Text style={styles.optionText}>Tirar Foto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.fullOptionButton}
-              onPress={pickImage}
-            >
-              <Text style={styles.optionText}>Escolher da Galeria</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.fullOptionButton, styles.cancelButton]}
-              onPress={() => setPhotoModalVisible(false)}
-            >
-              <Text style={styles.optionText}>Cancelar</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        )}
 
-      {/* Modal para seleção de categorias */}
-      <Modal
-        animationType="fade"
-        transparent={false}
-        visible={categoryModalVisible}
-        onRequestClose={() => setCategoryModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.categoryModalContent}>
-            <Text style={styles.modalTitle}>Selecione as Categorias</Text>
+        {/* Photo Options Modal */}
+        {photoModalVisible && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Adicionar Foto</Text>
 
-            {fetchingCategories ? (
-              <ActivityIndicator size="large" color="#2196F3" style={styles.loadingIndicator} />
-            ) : categories.length > 0 ? (
-              <ScrollView style={styles.categoryList}>
-                {categories.map(category => (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[
-                      styles.categoryItem,
-                      selectedCategories.includes(category.id) && styles.selectedCategoryItem
-                    ]}
-                    onPress={() => toggleCategorySelection(category.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryItemText,
-                        selectedCategories.includes(category.id) && styles.selectedCategoryItemText
-                      ]}
-                    >
-                      {category.category}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={styles.emptyCategoriesContainer}>
-                <Text style={styles.emptyCategoriesText}>Nenhuma categoria disponível</Text>
-                <TouchableOpacity
-                  style={styles.fullOptionButton}
-                  onPress={fetchCategories}
-                >
-                  <Text style={styles.optionText}>Tentar novamente</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  takePhoto();
+                  setPhotoModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Tirar Foto</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.fullOptionButton, styles.confirmButton]}
-              onPress={() => setCategoryModalVisible(false)}
-            >
-              <Text style={styles.optionText}>Confirmar</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => {
+                  pickImage();
+                  setPhotoModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Escolher da Galeria</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setPhotoModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        )}
+      </SafeAreaView>
       <CustomTabBar />
     </View>
   );
@@ -591,232 +545,217 @@ export default function NovoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  safeArea: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 100, // Adiciona espaço no final para não esconder o conteúdo com o TabBar
+    padding: 15,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 30,
+  section: {
+    marginBottom: 20,
   },
-  locationButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '500',
     marginBottom: 15,
+    color: '#11181C',
   },
-  locationButtonText: {
+  locationSelectButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    marginBottom: 10,
+  },
+  locationSelectText: {
     color: '#fff',
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
   },
-  locationInfo: {
-    width: '100%',
-    padding: 10,
+  locationInfoContainer: {
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
-    marginBottom: 15,
-  },
-  locationLabel: {
-    fontWeight: 'bold',
+    padding: 12,
     marginBottom: 10,
-    fontSize: 16,
-    textAlign: 'center',
+  },
+  locationInfoText: {
+    fontSize: 14,
+    color: '#11181C',
   },
   miniMapContainer: {
     width: '100%',
-    height: 200,
+    height: 180,
+    marginTop: 15,
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#ddd',
   },
   miniMap: {
     width: '100%',
     height: '100%',
   },
-  photoButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#9C27B0',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
+  categoryChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -5,
   },
-  photoButtonText: {
+  categoryChip: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    margin: 5,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  selectedCategoryChip: {
+    backgroundColor: '#3498db',
+    borderColor: '#0a7ea4',
+  },
+  categoryChipText: {
+    color: '#11181C',
+    fontSize: 14,
+  },
+  selectedCategoryChipText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: '500',
   },
-  photoPreviewContainer: {
+  photoUploadContainer: {
     width: '100%',
     height: 200,
-    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 8,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#ccc',
+    backgroundColor: '#f9f9f9',
+  },
+  photoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPlaceholderText: {
+    marginTop: 10,
+    color: '#687076',
+    fontSize: 16,
+  },
+  photoContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
   },
   photoPreview: {
     width: '100%',
     height: '100%',
   },
-  categoryButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#FF9800',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  categoryButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  categoryInfo: {
-    width: '100%',
+  changePhotoButton: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     padding: 10,
-    backgroundColor: '#FFF8E1',
-    borderRadius: 8,
-    marginBottom: 15,
+    alignItems: 'center',
   },
-  categoryLabel: {
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  categoryText: {
+  changePhotoText: {
+    color: '#fff',
     fontSize: 14,
+    fontWeight: '500',
   },
   submitButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+    padding: 15,
+    marginVertical: 15,
   },
   disabledButton: {
-    backgroundColor: '#A5D6A7',
+    backgroundColor: '#8ccde2',
   },
   submitButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 10,
   },
-  // Estilos de modals consistentes
-  modalContainer: {
-    flex: 1,
-    padding: 16,
-    paddingTop: 50,
-    backgroundColor: '#f5f5f5',
-  },
-  optionsModalContent: {
-    flex: 1,
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
     padding: 20,
-  },
-  mapModalContent: {
-    flex: 1,
-    padding: 10,
-  },
-  categoryModalContent: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  fullOptionButton: {
-    width: '100%',
-    backgroundColor: '#2196F3',
-    padding: 16,
-    marginVertical: 10,
-    borderRadius: 10,
     alignItems: 'center',
   },
-  cancelButton: {
-    backgroundColor: '#F44336',
-    marginTop: 10,
+  mapModalContent: {
+    width: '90%',
+    height: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    color: '#11181C',
+  },
+  modalButton: {
+    width: '100%',
+    backgroundColor: '#3498db',
+    padding: 15,
+    borderRadius: 8,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   confirmButton: {
     backgroundColor: '#4CAF50',
-    marginTop: 10,
   },
-  optionText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+  cancelButton: {
+    backgroundColor: '#F44336',
   },
-  mapContainer: {
+  fullMapContainer: {
+    width: '100%',
     flex: 1,
     borderRadius: 8,
     overflow: 'hidden',
-    marginBottom: 16,
+    marginVertical: 15,
   },
-  map: {
+  fullMap: {
     width: '100%',
     height: '100%',
   },
-  buttonContainer: {
-    flexDirection: 'column',
+  buttonRow: {
+    width: '100%',
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
   },
-  // Estilos específicos para a lista de categorias
-  categoryList: {
-    width: '100%',
-    marginVertical: 20,
-    flex: 1,
-  },
-  categoryItem: {
-    width: '100%',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  selectedCategoryItem: {
-    backgroundColor: '#E3F2FD',
-  },
-  categoryItemText: {
-    fontSize: 16,
-  },
-  selectedCategoryItemText: {
-    fontWeight: 'bold',
-    color: '#1976D2',
-  },
-  emptyCategoriesContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyCategoriesText: {
-    fontSize: 16,
-    color: '#757575',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  loadingIndicator: {
-    marginVertical: 30,
-  }
 });

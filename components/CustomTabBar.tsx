@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { router, usePathname } from 'expo-router';
