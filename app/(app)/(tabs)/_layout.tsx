@@ -1,7 +1,10 @@
+import { useTheme } from '@/constants/Colors';
 import { Tabs } from 'expo-router/tabs';
-import { View } from 'react-native';
 
 export default function TabsLayout() {
+
+  const { colors, isDark } = useTheme();
+
   return (
     <Tabs
       tabBar={() => null}

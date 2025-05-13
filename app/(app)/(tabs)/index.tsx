@@ -1,78 +1,79 @@
-
 import CustomTabBar from '@/components/CustomTabBar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-
-
-type UserReports = {
-  user_id: number;
-  status_id: Status;
-  location: string;
-  photo: string;
-  date: string;
-}
-
-type Status = {
-  id: number;
-  status: string;
-}
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  ScrollView,
+  RefreshControl
+} from 'react-native';
+import { useTheme } from '@/constants/Colors';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import styles from '@/assets/styles/(app)/(tabs)/index.styles';
+import DashboardSummary from '@/components/DashboardSummary'; // Importando o componente
+import { UserReport } from '@/types/types';
 
 
 export default function HomeScreen() {
-  const [reports, setReports] = useState<UserReports[]>([]);
-
+  const [reports, setReports] = useState<UserReport[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { colors } = useTheme();
 
   useEffect(() => {
-    getReportInfo()
-  }
-  , []);
+    getUserReports();
+  }, []);
 
-  async function getReportInfo() {
-    const token = await AsyncStorage.getItem('token');
+  const getUserReports = async () => {
+    try {
+      setIsLoading(true);
+      const token = await AsyncStorage.getItem("token");
 
-    const response  = await fetch('http://127.0.0.1:8000/api/user/reports', {
-      method: 'GET',
+      const response = await fetch('http://127.0.0.1:8000/api/user/reports', {
         headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
       });
+
       const data = await response.json();
       setReports(data);
-      console.log(data);
+    } catch (error) {
+      console.error('Erro ao buscar reports:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Bem-vindo </Text>
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    await getUserReports();
+  };
 
-        <Text style={styles.title}>Relatórios</Text>
-        {reports.map((report, index) => (
-          <View key={index}>
-            <Text>{report.location}</Text>
-            <Text>{report.date}</Text>
-            <Text>{report.status_id}</Text>
-            <Text>{report.photo}</Text>
+  return (
+    <SafeAreaProvider>
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+          />
+        }
+        style={[styles.container, { backgroundColor: colors.accent }]}
+      >
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              A carregar reports...
+            </Text>
           </View>
-        ))}
-      </View>
+        ) : (
+          <DashboardSummary reports={reports} colors={colors} />
+        )}
+      </ScrollView>
       <CustomTabBar />
-    </View>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-  },
-});

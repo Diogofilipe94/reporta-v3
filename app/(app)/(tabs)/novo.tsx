@@ -1,26 +1,35 @@
 import CustomTabBar from '@/components/CustomTabBar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, TextInput, ScrollView, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, SafeAreaView, StatusBar, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import MapView, { Marker } from 'react-native-maps';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons'; // Make sure to install this package
-
-type Category = {
-  id: number;
-  category: string;
-}
+import { Ionicons } from '@expo/vector-icons';
+import * as Progress from 'react-native-progress';
+import { Category } from '@/types/types';
+import { useTheme } from '@/constants/Colors';
 
 export default function NovoScreen() {
+  // Get theme colors
+  const { colors, isDark } = useTheme();
+
+  // Wizard step state
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 3;
+
+  // Form data
   const [locationText, setLocationText] = useState('');
   const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [photo, setPhoto] = useState('');
   const [photoURI, setPhotoURI] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  // UI states
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
   const [showLocationOptions, setShowLocationOptions] = useState(false);
@@ -119,14 +128,6 @@ export default function NovoScreen() {
     });
   };
 
-  // Define colors from the app theme
-  const colors = {
-    text: '#11181C',
-    background: '#fff',
-    tint: '#0a7ea4',
-    icon: '#687076',
-  };
-
   // Take photo using camera
   const takePhoto = async () => {
     try {
@@ -182,23 +183,48 @@ export default function NovoScreen() {
 
       if (fileInfo.exists) {
         const fileSizeInMB = fileInfo.size / (1024 * 1024);
-        console.log(`Tamanho da imagem: ${fileSizeInMB.toFixed(2)}MB`);
+        console.log(`Tamanho original da imagem: ${fileSizeInMB.toFixed(4)}MB`);
 
-        if (fileSizeInMB > 1.9) { // Slightly reduced to ensure
-          Alert.alert('Arquivo muito grande', 'A imagem não pode ter mais que 2MB. Por favor, escolha outra imagem.');
-          return;
-        }
+        // Redimensiona e comprime a imagem para garantir compatibilidade
+        console.log('Iniciando compressão da imagem...');
+
+        // Primeiro redimensiona para um tamanho menor usando a API atual
+        const resizedImage = await ImageManipulator.manipulateAsync(
+          uri,
+          [{ resize: { width: 600 } }], // Tamanho menor (resolução média)
+          {
+            compress: 1,
+            format: ImageManipulator.SaveFormat.JPEG
+          }
+        );
+
+        // Depois comprime a imagem redimensionada
+        const compressedImage = await ImageManipulator.manipulateAsync(
+          resizedImage.uri,
+          [], // Sem manipulações adicionais
+          {
+            compress: 0.5, // 50% de compressão
+            format: ImageManipulator.SaveFormat.JPEG
+          }
+        );
+
+        // Verifica o tamanho final
+        const compressedInfo = await FileSystem.getInfoAsync(compressedImage.uri);
+        const compressedSizeMB = compressedInfo.exists ? compressedInfo.size / (1024 * 1024) : 0;
+        console.log(`Tamanho após compressão: ${compressedSizeMB.toFixed(4)}MB`);
+
+        // Normalizar o URI para iOS
+        const normalizedUri = Platform.OS === 'ios' ? compressedImage.uri.replace('file://', '') : compressedImage.uri;
+        setPhotoURI(normalizedUri);
+        setPhoto(normalizedUri);
       }
-
-      // Store URI for future use
-      setPhotoURI(uri);
-      setPhoto(uri); // For consistency with other parts of the code
     } catch (error) {
       console.error('Erro ao processar imagem:', error);
       Alert.alert('Erro', 'Ocorreu um problema ao processar a imagem.');
     }
   };
 
+  // Create the report with all collected information
   async function createReport() {
     try {
       if (!locationCoords || !locationText) {
@@ -223,45 +249,61 @@ export default function NovoScreen() {
         // Backend is configured to receive a file using multipart/form-data
         const formData = new FormData();
 
-        // Add location as a string (either using the displayed text or the coordinates)
-        const locationString = locationText || `${locationCoords.latitude.toFixed(6)}, ${locationCoords.longitude.toFixed(6)}`;
+        // Format location as "address - coordinates"
+        const coordsString = `${locationCoords.latitude.toFixed(6)}, ${locationCoords.longitude.toFixed(6)}`;
+        const locationString = `${locationText} - ${coordsString}`;
+
         formData.append('location', locationString);
 
-        // Add categories as array
+        // Adicionar categorias corretamente - enviar cada ID separadamente com o mesmo nome
         selectedCategories.forEach(categoryId => {
           formData.append('category_id[]', categoryId.toString());
         });
 
-        // Add photo as file
+        // Fix photo upload - make sure it's properly formatted for multipart/form-data
         const fileName = photoURI.split('/').pop() || 'photo.jpg';
-        const match = /\.(\w+)$/.exec(fileName);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        const fileType = fileName.endsWith('.png')
+          ? 'image/png'
+          : fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')
+            ? 'image/jpeg'
+            : 'image/jpg';
 
+        // Use a more explicit approach for appending the photo
         formData.append('photo', {
-          uri: photoURI,
+          uri: Platform.OS === 'ios' ? photoURI.replace('file://', '') : photoURI,
           name: fileName,
-          type
+          type: fileType
         } as any);
 
         console.log('Sending data to API:', {
           location: locationString,
           category_id: selectedCategories,
-          photo: "(image file)"
+          photo: `File: ${fileName}, Type: ${fileType}, URI: ${photoURI.substring(0, 50)}...`
         });
 
-        // Send using FormData
+        // Send using FormData - don't specify content-type, let it be set automatically
         const response = await fetch('http://127.0.0.1:8000/api/reports', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
-            // Don't set Content-Type when using FormData
+            // Let FormData set its own Content-Type with boundary
           },
           body: formData
         });
 
-        const data = await response.json();
-        console.log('API Response:', data);
+        // Get response as text first for debugging
+        const responseText = await response.text();
+
+        // Try to parse the response as JSON
+        let data;
+        try {
+          data = JSON.parse(responseText);
+          console.log('API Response:', data);
+        } catch (e) {
+          console.error('Failed to parse response as JSON:', responseText);
+          throw new Error('Invalid response format from server');
+        }
 
         if (response.ok) {
           Alert.alert('Success', 'Report created successfully!');
@@ -289,254 +331,420 @@ export default function NovoScreen() {
       Alert.alert('Error', 'An error occurred while creating the report');
     } finally {
       setIsLoading(false);
+      setCurrentStep(1);
     }
   }
 
-  return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView style={styles.scrollView}>
-          <View style={styles.content}>
-            {/* Location Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Localização</Text>
-              <TouchableOpacity
-                style={styles.locationSelectButton}
-                onPress={() => setShowLocationOptions(true)}
+  // Functions to navigate through steps
+  const nextStep = () => {
+    // Validate current step before proceeding
+    if (currentStep === 1 && (!locationCoords || !locationText)) {
+      Alert.alert('Erro', 'Por favor, selecione uma localização para continuar');
+      return;
+    }
+
+    if (currentStep === 2 && selectedCategories.length === 0) {
+      Alert.alert('Erro', 'Por favor, selecione pelo menos uma categoria para continuar');
+      return;
+    }
+
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      // Final step: create report
+      createReport();
+      currentStep === 1;
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Render progress indicator
+  const renderProgressIndicator = () => {
+    // Calculate progress based on current step (approximately 33% per step)
+    const progress = (currentStep) / totalSteps;
+
+    return (
+      <View style={styles.progressContainer}>
+        <Progress.Circle
+          size={120}
+          progress={progress}
+          thickness={8}
+          color={colors.primary}
+          unfilledColor={isDark ? colors.divider : "#e0e0e0"}
+          borderWidth={4}
+          borderColor={colors.secondary}
+          showsText={true}
+          formatText={() => `${currentStep}/${totalSteps}`}
+          style={{ marginBottom: 10 }}
+        />
+      </View>
+    );
+  };
+
+  // Step 1: Location Selection
+  const renderLocationStep = () => {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.sectionContent}>
+          <TouchableOpacity
+            style={[styles.locationSelectButton, {backgroundColor: colors.primary}]}
+            onPress={() => setShowLocationOptions(true)}
+          >
+            <Text style={[styles.locationSelectText, {color: colors.textTertiary}]}>
+              {locationText ? 'Alterar localização' : 'Selecionar localização'}
+            </Text>
+            <Ionicons name="location" size={24} color={colors.textTertiary} />
+          </TouchableOpacity>
+
+          {locationText && (
+            <View style={[styles.locationInfoContainer, {backgroundColor: colors.surface}]}>
+              <Text style={[styles.locationInfoText, {color: colors.textPrimary}]}>{locationText} - {locationCoords?.latitude}, {locationCoords?.longitude}</Text>
+            </View>
+          )}
+
+          {locationCoords && (
+            <View style={styles.miniMapContainer}>
+              <MapView
+                style={styles.miniMap}
+                region={{
+                  latitude: locationCoords.latitude,
+                  longitude: locationCoords.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
               >
-                <Text style={styles.locationSelectText}>
-                  {locationText ? 'Alterar localização' : 'Selecionar localização'}
-                </Text>
-                <Ionicons name="location" size={24} color="#fff" />
-              </TouchableOpacity>
+                <Marker
+                  coordinate={{
+                    latitude: locationCoords.latitude,
+                    longitude: locationCoords.longitude,
+                  }}
+                />
+              </MapView>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
 
-              {locationText && (
-                <View style={styles.locationInfoContainer}>
-                  <Text style={styles.locationInfoText}>{locationText}</Text>
-                </View>
-              )}
-
-              {locationCoords && (
-                <View style={styles.miniMapContainer}>
-                  <MapView
-                    style={styles.miniMap}
-                    region={{
-                      latitude: locationCoords.latitude,
-                      longitude: locationCoords.longitude,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
-                    }}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
+  // Step 2: Category Selection
+  const renderCategoryStep = () => {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.sectionContent}>
+          {fetchingCategories ? (
+            <ActivityIndicator size="large" color={colors.primary} />
+          ) : (
+            <View style={styles.categoryChipsContainer}>
+              {categories.map(category => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryChip,
+                    {
+                      backgroundColor: isDark ? colors.surface : "#f5f5f5",
+                      borderColor: isDark ? colors.surface : "#e0e0e0"
+                    },
+                    selectedCategories.includes(category.id) && [
+                      styles.selectedCategoryChip,
+                      {backgroundColor: colors.primary, borderColor: colors.surface}
+                    ]
+                  ]}
+                  onPress={() => toggleCategorySelection(category.id)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      {color: colors.textPrimary},
+                      selectedCategories.includes(category.id) && [
+                        styles.selectedCategoryChipText,
+                        {color: colors.textTertiary}
+                      ]
+                    ]}
                   >
-                    <Marker
-                      coordinate={{
-                        latitude: locationCoords.latitude,
-                        longitude: locationCoords.longitude,
-                      }}
-                    />
-                  </MapView>
-                </View>
-              )}
+                    {category.category}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
+          )}
+        </View>
+      </View>
+    );
+  };
 
-            {/* Categories Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Categorias</Text>
-              {fetchingCategories ? (
-                <ActivityIndicator size="small" color="#4B0082" />
-              ) : (
-                <View style={styles.categoryChipsContainer}>
-                  {categories.map(category => (
-                    <TouchableOpacity
-                      key={category.id}
-                      style={[
-                        styles.categoryChip,
-                        selectedCategories.includes(category.id) && styles.selectedCategoryChip
-                      ]}
-                      onPress={() => toggleCategorySelection(category.id)}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryChipText,
-                          selectedCategories.includes(category.id) && styles.selectedCategoryChipText
-                        ]}
-                      >
-                        {category.category}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
+  // Step 3: Photo Upload
+  const renderPhotoStep = () => {
+    return (
+      <View style={styles.stepContainer}>
+        <View style={styles.sectionContent}>
+          <TouchableOpacity
+            style={[
+              styles.photoUploadContainer,
+              {
+                borderColor: colors.divider,
+                backgroundColor: isDark ? colors.surface : "#f9f9f9"
+              }
+            ]}
+            onPress={photoURI ? undefined : () => setPhotoModalVisible(true)}
+          >
+            {photoURI ? (
+              <View style={styles.photoContainer}>
+                <Image
+                  source={{ uri: photoURI }}
+                  style={styles.photoPreview}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity
+                  style={styles.changePhotoButton}
+                  onPress={() => setPhotoModalVisible(true)}
+                >
+                  <Text style={styles.changePhotoText}>Alterar foto</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Ionicons name="camera" size={50} color={colors.textSecondary} />
+                <Text style={[styles.photoPlaceholderText, {color: colors.textSecondary}]}>Adicionar foto</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
-            {/* Photo Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Foto</Text>
-              <TouchableOpacity
-                style={styles.photoUploadContainer}
-                onPress={photoURI ? undefined : () => setPhotoModalVisible(true)}
-              >
-                {photoURI ? (
-                  <View style={styles.photoContainer}>
-                    <Image
-                      source={{ uri: photoURI }}
-                      style={styles.photoPreview}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={styles.changePhotoButton}
-                      onPress={() => setPhotoModalVisible(true)}
-                    >
-                      <Text style={styles.changePhotoText}>Alterar foto</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={styles.photoPlaceholder}>
-                    <Ionicons name="camera" size={50} color="#687076" />
-                    <Text style={styles.photoPlaceholderText}>Adicionar foto</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
+  // Determine which step to render
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 1:
+        return renderLocationStep();
+      case 2:
+        return renderCategoryStep();
+      case 3:
+        return renderPhotoStep();
+      default:
+        return renderLocationStep();
+    }
+  };
 
-            {/* Submit Button */}
+  // Get step title
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 1:
+        return "Localização";
+      case 2:
+        return "Categorias";
+      case 3:
+        return "Foto";
+      default:
+        return "Localização";
+    }
+  };
+
+  // Get next button text
+  const getNextButtonText = () => {
+    if (currentStep === totalSteps) {
+      return isLoading ? "A guardar..." : "Guardar Report";
+    }
+    return "Próximo";
+  };
+
+  return (
+    <View style={[styles.container, {backgroundColor: colors.accent}]}>
+      <StatusBar
+        backgroundColor={colors.primary}
+        barStyle={isDark ? "light-content" : "dark-content"}
+      />
+
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header */}
+        <View style={[styles.header, {backgroundColor: colors.accent}]}>
+          <Text style={[styles.headerTitle, {color: colors.primary}]}>Criar novo report</Text>
+        </View>
+
+        {/* Progress indicator */}
+        {renderProgressIndicator()}
+
+        {/* Step Title */}
+        <View style={styles.stepTitleContainer}>
+          <Text style={[styles.stepTitle, {color: colors.textPrimary}]}>
+            {getStepTitle()}
+          </Text>
+        </View>
+
+        {/* Current Step Content */}
+        <View style={styles.content}>
+          {renderCurrentStep()}
+        </View>
+
+        {/* Navigation Buttons */}
+        <View style={[
+          styles.navigationButtons,
+          {
+            backgroundColor: isDark ? colors.surface : "#f9f9f9",
+          }
+        ]}>
+          {currentStep > 1 && (
             <TouchableOpacity
-              style={[styles.submitButton, isLoading && styles.disabledButton]}
-              onPress={createReport}
-              disabled={isLoading}
+              style={[styles.prevButton, {backgroundColor: colors.secondary}]}
+              onPress={prevStep}
             >
-              <Ionicons name="save-outline" size={24} color="#fff" />
-              <Text style={styles.submitButtonText}>
-                {isLoading ? 'A guardar...' : 'Guardar'}
-              </Text>
+              <Ionicons name="arrow-back" size={20} color={colors.textTertiary} />
+              <Text style={[styles.buttonText, {color: colors.textTertiary}]}>Voltar</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.nextButton,
+              {backgroundColor: colors.primary},
+              isLoading && {backgroundColor: isDark ? "#3a3a2b" : "#8ccde2"},
+              currentStep === totalSteps ? {backgroundColor: colors.success} : null
+            ]}
+            onPress={nextStep}
+            disabled={isLoading}
+          >
+            <Text style={[styles.buttonText, {color: colors.accent}]}>{getNextButtonText()}</Text>
+            {currentStep < totalSteps ? (
+              <Ionicons name="arrow-forward" size={20} color={colors.textTertiary} />
+            ) : (
+              <Ionicons name="save-outline" size={20} color={colors.textTertiary} />
+            )}
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+
+      {/* Location Options Modal */}
+      {showLocationOptions && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Escolha uma opção</Text>
+
+            <TouchableOpacity
+              style={[styles.modalButton, {backgroundColor: colors.primary}]}
+              onPress={() => {
+                getCurrentLocation();
+                setShowLocationOptions(false);
+              }}
+            >
+              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Usar minha localização atual</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, {backgroundColor: colors.primary}]}
+              onPress={() => {
+                setMapVisible(true);
+                setShowLocationOptions(false);
+              }}
+            >
+              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Escolher uma localização no mapa</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton, {backgroundColor: colors.error}]}
+              onPress={() => setShowLocationOptions(false)}
+            >
+              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </View>
+      )}
 
-        {/* Location Options Modal */}
-        {showLocationOptions && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Escolha uma opção</Text>
+      {/* Map Selection Modal */}
+      {mapVisible && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.mapModalContent, {backgroundColor: colors.surface}]}>
+            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Toque no mapa para escolher a localização</Text>
 
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  getCurrentLocation();
-                  setShowLocationOptions(false);
+            <View style={styles.fullMapContainer}>
+              <MapView
+                style={styles.fullMap}
+                initialRegion={{
+                  latitude: locationCoords?.latitude || 41.1579,
+                  longitude: locationCoords?.longitude || -8.6291,
+                  latitudeDelta: 0.0922,
+                  longitudeDelta: 0.0421,
+                }}
+                onPress={(event) => {
+                  const coords = event.nativeEvent.coordinate;
+                  setLocationCoords(coords);
+                  setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
                 }}
               >
-                <Text style={styles.modalButtonText}>Usar minha localização atual</Text>
+                {locationCoords && (
+                  <Marker
+                    coordinate={{
+                      latitude: locationCoords.latitude,
+                      longitude: locationCoords.longitude,
+                    }}
+                  />
+                )}
+              </MapView>
+            </View>
+
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton, {backgroundColor: colors.success}]}
+                onPress={() => setMapVisible(false)}
+              >
+                <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Confirmar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  setMapVisible(true);
-                  setShowLocationOptions(false);
-                }}
+                style={[styles.modalButton, styles.cancelButton, {backgroundColor: colors.error}]}
+                onPress={() => setMapVisible(false)}
               >
-                <Text style={styles.modalButtonText}>Escolher uma localização no mapa</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowLocationOptions(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancelar</Text>
+                <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Cancelar</Text>
               </TouchableOpacity>
             </View>
           </View>
-        )}
+        </View>
+      )}
 
-        {/* Map Selection Modal */}
-        {mapVisible && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.mapModalContent}>
-              <Text style={styles.modalTitle}>Toque no mapa para escolher a localização</Text>
+      {/* Photo Options Modal */}
+      {photoModalVisible && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Adicionar Foto</Text>
 
-              <View style={styles.fullMapContainer}>
-                <MapView
-                  style={styles.fullMap}
-                  initialRegion={{
-                    latitude: locationCoords?.latitude || 41.1579,
-                    longitude: locationCoords?.longitude || -8.6291,
-                    latitudeDelta: 0.0922,
-                    longitudeDelta: 0.0421,
-                  }}
-                  onPress={(event) => {
-                    const coords = event.nativeEvent.coordinate;
-                    setLocationCoords(coords);
-                    setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
-                  }}
-                >
-                  {locationCoords && (
-                    <Marker
-                      coordinate={{
-                        latitude: locationCoords.latitude,
-                        longitude: locationCoords.longitude,
-                      }}
-                    />
-                  )}
-                </MapView>
-              </View>
+            <TouchableOpacity
+              style={[styles.modalButton, {backgroundColor: colors.primary}]}
+              onPress={() => {
+                takePhoto();
+                setPhotoModalVisible(false);
+              }}
+            >
+              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Tirar Foto</Text>
+            </TouchableOpacity>
 
-              <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.confirmButton]}
-                  onPress={() => setMapVisible(false)}
-                >
-                  <Text style={styles.modalButtonText}>Confirmar</Text>
-                </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, {backgroundColor: colors.primary}]}
+              onPress={() => {
+                pickImage();
+                setPhotoModalVisible(false);
+              }}
+            >
+              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Escolher da Galeria</Text>
+            </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => setMapVisible(false)}
-                >
-                  <Text style={styles.modalButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton, {backgroundColor: colors.error}]}
+              onPress={() => setPhotoModalVisible(false)}
+            >
+              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
+      )}
 
-        {/* Photo Options Modal */}
-        {photoModalVisible && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Adicionar Foto</Text>
-
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  takePhoto();
-                  setPhotoModalVisible(false);
-                }}
-              >
-                <Text style={styles.modalButtonText}>Tirar Foto</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  pickImage();
-                  setPhotoModalVisible(false);
-                }}
-              >
-                <Text style={styles.modalButtonText}>Escolher da Galeria</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setPhotoModalVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </SafeAreaView>
       <CustomTabBar />
     </View>
   );
@@ -545,50 +753,94 @@ export default function NovoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   safeArea: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
+  header: {
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  progressContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  stepTitleContainer: {
+    paddingHorizontal: 15,
+    marginBottom: 15,
+  },
+  stepTitle: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   content: {
+    flex: 1,
     padding: 15,
   },
-  section: {
-    marginBottom: 20,
+  stepContainer: {
+    flex: 1,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginBottom: 15,
-    color: '#11181C',
+  sectionContent: {
+    marginTop: 10,
+  },
+  navigationButtons: {
+    flexDirection: 'row',
+    padding: 15,
+    justifyContent: 'space-between',
+  },
+  prevButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 0.48,
+    justifyContent: 'center',
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 0.48,
+    justifyContent: 'center',
+  },
+  buttonText: {
+    fontWeight: 'bold',
+    marginHorizontal: 5,
   },
   locationSelectButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#3498db',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 15,
     marginBottom: 10,
   },
   locationSelectText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
   locationInfoContainer: {
-    backgroundColor: '#f0f0f0',
     borderRadius: 8,
     padding: 12,
     marginBottom: 10,
   },
   locationInfoText: {
     fontSize: 14,
-    color: '#11181C',
   },
   miniMapContainer: {
     width: '100%',
@@ -609,34 +861,27 @@ const styles = StyleSheet.create({
     marginHorizontal: -5,
   },
   categoryChip: {
-    backgroundColor: '#f5f5f5',
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 15,
     margin: 5,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   selectedCategoryChip: {
-    backgroundColor: '#3498db',
-    borderColor: '#0a7ea4',
+    // Colors set dynamically
   },
   categoryChipText: {
-    color: '#11181C',
     fontSize: 14,
   },
   selectedCategoryChipText: {
-    color: '#fff',
     fontWeight: '500',
   },
   photoUploadContainer: {
     width: '100%',
-    height: 200,
+    height: 300,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#f9f9f9',
   },
   photoPlaceholder: {
     width: '100%',
@@ -646,7 +891,6 @@ const styles = StyleSheet.create({
   },
   photoPlaceholderText: {
     marginTop: 10,
-    color: '#687076',
     fontSize: 16,
   },
   photoContainer: {
@@ -672,24 +916,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  submitButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#3498db',
-    borderRadius: 8,
-    padding: 15,
-    marginVertical: 15,
-  },
-  disabledButton: {
-    backgroundColor: '#8ccde2',
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
-  },
   modalOverlay: {
     position: 'absolute',
     top: 0,
@@ -703,7 +929,6 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '80%',
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
@@ -711,36 +936,31 @@ const styles = StyleSheet.create({
   mapModalContent: {
     width: '90%',
     height: '80%',
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
-    alignItems: 'center',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
-    color: '#11181C',
   },
   modalButton: {
     width: '100%',
-    backgroundColor: '#3498db',
     padding: 15,
     borderRadius: 8,
     marginVertical: 8,
     alignItems: 'center',
   },
   modalButtonText: {
-    color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   },
   confirmButton: {
-    backgroundColor: '#4CAF50',
+    // Color set dynamically
   },
   cancelButton: {
-    backgroundColor: '#F44336',
+    // Color set dynamically
   },
   fullMapContainer: {
     width: '100%',
@@ -754,8 +974,9 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   buttonRow: {
-    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 10,
+    
   },
 });

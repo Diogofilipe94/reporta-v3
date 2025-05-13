@@ -1,14 +1,16 @@
- import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { router, usePathname } from 'expo-router';
 import { useEffect } from 'react';
 import { useTabContext } from '../app/contexts/TabContext';
+import { useTheme } from '@/constants/Colors';
 
 export default function CustomTabBar() {
   const navigation = useNavigation();
   const pathname = usePathname();
   const { activeTab, setActiveTab } = useTabContext();
+  const { colors, isDark } = useTheme();
 
   // Atualizar o estado baseado no pathname atual quando montar o componente
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function CustomTabBar() {
   // Função para navegar para novo
   const goToNew = () => {
     setActiveTab('new');
-    router.replace('/(app)/(tabs)/novo');
+    router.push('/(app)/(tabs)/novo');
   };
 
   // Função para abrir o drawer
@@ -45,13 +47,19 @@ export default function CustomTabBar() {
       } else if (pathname === '/(tabs)/novo') {
         setActiveTab('new');
       } else {
-        setActiveTab(''); // Nenhuma tab ativa se estiver em outra tela
+        setActiveTab('');
       }
     }, 300);
   };
 
   return (
-    <View style={styles.tabBarContainer}>
+    <View style={[
+      styles.tabBarContainer,
+      {
+        backgroundColor: colors.surface,
+        borderTopColor: colors.divider
+      }
+    ]}>
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={styles.tabButton}
@@ -59,15 +67,15 @@ export default function CustomTabBar() {
           activeOpacity={0.7}
         >
           <Ionicons
-            name={activeTab === 'home' ? "home" : "home-outline"}
+            name="home"
             size={24}
-            color={activeTab === 'home' ? '#3498db' : '#999'}
+            color={colors.textSecondary}
             style={styles.icon}
           />
           <Text
             style={[
               styles.tabText,
-              {color: activeTab === 'home' ? '#3498db' : '#999'}
+              {color: activeTab === 'home' ? colors.primary : colors.textSecondary}
             ]}
           >
             Início
@@ -80,15 +88,15 @@ export default function CustomTabBar() {
           activeOpacity={0.7}
         >
           <Ionicons
-            name={activeTab === 'new' ? "add-circle" : "add-circle-outline"}
+            name="add-circle"
             size={24}
-            color={activeTab === 'new' ? '#3498db' : '#999'}
+            color={colors.textSecondary}
             style={styles.icon}
           />
           <Text
             style={[
               styles.tabText,
-              {color: activeTab === 'new' ? '#3498db' : '#999'}
+              {color: activeTab === 'new' ? colors.primary : colors.textSecondary}
             ]}
           >
             Novo
@@ -101,15 +109,16 @@ export default function CustomTabBar() {
           activeOpacity={0.7}
         >
           <Ionicons
-            name={activeTab === 'menu' ? "menu" : "menu-outline"}
+            name="menu"
             size={24}
-            color={activeTab === 'menu' ? '#3498db' : '#999'}
+            color={colors.textSecondary}
             style={styles.icon}
           />
+
           <Text
             style={[
               styles.tabText,
-              {color: activeTab === 'menu' ? '#3498db' : '#999'}
+              {color: activeTab === 'menu' ? colors.primary : colors.textSecondary}
             ]}
           >
             Menu
@@ -118,7 +127,9 @@ export default function CustomTabBar() {
       </View>
 
       {/* Margem de segurança para iOS */}
-      {Platform.OS === 'ios' && <View style={styles.iosSafeArea} />}
+      {Platform.OS === 'ios' && (
+        <View style={[styles.iosSafeArea, { backgroundColor: colors.surface }]} />
+      )}
     </View>
   );
 }
@@ -126,9 +137,10 @@ export default function CustomTabBar() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     width: '100%',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    elevation: 8,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   tabBar: {
     flexDirection: 'row',
@@ -150,9 +162,9 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 12,
     textAlign: 'center',
+    fontWeight: '500',
   },
   iosSafeArea: {
-    height: 20,
-    backgroundColor: '#fff',
+    height: 25,
   }
 });
