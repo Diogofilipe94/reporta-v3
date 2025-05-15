@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 const styles = StyleSheet.create({
   container: {
@@ -19,20 +19,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     opacity: 0.9,
   },
+  dashboardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   dashboardContainer: {
-    margin: 16,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
+    marginVertical: 16,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginHorizontal: 16,
   },
   dashboardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
+    fontSize: 22,
+    fontWeight: '700',
+    marginLeft: 8,},
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -81,136 +87,106 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  reportsSection: {
+    borderRadius: 16,
     padding: 20,
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    marginTop: 8,
-  },
-  reportCard: {
-    borderRadius: 12,
-    marginBottom: 16,
-    padding: 16,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  reportHeader: {
+  reportsSectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reportsSectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+  reportsList: {
+    marginTop: 8,
+  },
+  reportCard: {
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  reportCardContent: {
+    padding: 16,
+  },
+  reportCardHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
   },
-  locationContainer: {
-    flexDirection: 'row',
+  reportStatusIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
+    marginRight: 8,
   },
-  locationIcon: {
-    marginRight: 6,
-  },
-  locationText: {
+  reportStatusText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  reportCardBody: {
+    marginBottom: 12,
+  },
+  reportInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  reportInfoText: {
+    fontSize: 15,
+    marginLeft: 8,
     flex: 1,
   },
-  statusContainer: {
-    marginVertical: 8,
+  categoriesContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginLeft: 8,
   },
-  statusBadge: {
+  categoryChip: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 16,
-    alignSelf: 'flex-start',
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  categoriesContainer: {
-    marginVertical: 8,
-  },
-  categoryTitle: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  categoryBadgesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 8,
-  },
-  categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
     marginRight: 6,
     marginBottom: 6,
   },
   categoryText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
   },
-  imageContainer: {
-    height: 180,
+  reportPhotoContainer: {
     borderRadius: 8,
     overflow: 'hidden',
-    marginBottom: 12,
-  },
-  reportImage: {
-    width: '100%',
-    height: '100%',
-  },
-  reportFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginTop: 8,
   },
-  dateContainer: {
-    flexDirection: 'row',
+  reportPhoto: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+  },
+  emptyReportsContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
-  dateIcon: {
-    marginRight: 4,
-  },
-  dateText: {
-    fontSize: 14,
-  },
-  detailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  detailsText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginRight: 4,
+  emptyReportsText: {
+    fontSize: 16,
+    marginTop: 12,
+    textAlign: 'center',
   },
 });
 

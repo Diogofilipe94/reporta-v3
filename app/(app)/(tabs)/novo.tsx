@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Progress from 'react-native-progress';
 import { Category } from '@/types/types';
-import { useTheme } from '@/constants/Colors';
+import { useTheme } from '@/app/contexts/ThemeContext';
 
 export default function NovoScreen() {
   // Get theme colors
@@ -36,6 +36,12 @@ export default function NovoScreen() {
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
 
+  const BACKEND_BASE_URL = Platform.select({
+    ios: 'http://localhost:8000',
+    android: 'http://10.0.2.2:8000',
+    default: 'http://127.0.0.1:8000'
+  });
+
   const router = useRouter();
 
   // Fetch categories when component mounts
@@ -49,7 +55,7 @@ export default function NovoScreen() {
       setFetchingCategories(true);
 
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch("http://127.0.0.1:8000/api/categories", {
+      const response = await fetch(`${BACKEND_BASE_URL}/api/categories`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -72,7 +78,39 @@ export default function NovoScreen() {
     }
   };
 
-  // Request permission and get current location
+  // Função auxiliar para obter o endereço a partir das coordenadas
+  const getAddressFromCoordinates = async (coords: { latitude: number; longitude: number }) => {
+    try {
+      const reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude: coords.latitude,
+        longitude: coords.longitude
+      });
+
+      if (reverseGeocode && reverseGeocode.length > 0) {
+        const address = reverseGeocode[0];
+
+        // Criar uma morada mais completa com todos os dados disponíveis
+        const addressComponents = [
+          address.name,
+          address.street,
+          address.streetNumber,
+          address.district,
+          address.postalCode,
+          address.city,
+          address.region,
+          address.country
+        ].filter(Boolean); // Remove elementos vazios/nulos
+
+        return addressComponents.join(', ');
+      }
+      return null;
+    } catch (error) {
+      console.error('Erro ao obter endereço:', error);
+      return null;
+    }
+  };
+
+  // Request permission and get current location with complete address
   const getCurrentLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -93,19 +131,13 @@ export default function NovoScreen() {
 
       setLocationCoords(locationData);
 
-      // Get address from coordinates if needed
-      try {
-        const reverseGeocode = await Location.reverseGeocodeAsync(locationData);
-        if (reverseGeocode && reverseGeocode.length > 0) {
-          const address = reverseGeocode[0];
-          const formattedAddress = `${address.street || ''}, ${address.city || ''}, ${address.region || ''}`;
-          setLocationText(formattedAddress);
-        } else {
-          // Fallback to coordinate string
-          setLocationText(`${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
-        }
-      } catch (error) {
-        console.error('Error in reverse geocoding:', error);
+      // Obter endereço completo a partir das coordenadas
+      const address = await getAddressFromCoordinates(locationData);
+
+      if (address) {
+        setLocationText(address);
+      } else {
+        // Fallback para coordenadas
         setLocationText(`${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
       }
     } catch (error) {
@@ -249,10 +281,15 @@ export default function NovoScreen() {
         // Backend is configured to receive a file using multipart/form-data
         const formData = new FormData();
 
-        // Format location as "address - coordinates"
+        // Enviar morada e coordenadas separadamente
+        formData.append('address', locationText); // Morada formatada para exibição
+        formData.append('latitude', locationCoords.latitude.toString());
+        formData.append('longitude', locationCoords.longitude.toString());
+
+        // Para compatibilidade com o backend atual, se necessário:
+        // Format location as "address - coordinates" como antes
         const coordsString = `${locationCoords.latitude.toFixed(6)}, ${locationCoords.longitude.toFixed(6)}`;
         const locationString = `${locationText} - ${coordsString}`;
-
         formData.append('location', locationString);
 
         // Adicionar categorias corretamente - enviar cada ID separadamente com o mesmo nome
@@ -276,7 +313,10 @@ export default function NovoScreen() {
         } as any);
 
         console.log('Sending data to API:', {
-          location: locationString,
+          address: locationText,
+          latitude: locationCoords.latitude,
+          longitude: locationCoords.longitude,
+          location: locationString, // Campo original para compatibilidade
           category_id: selectedCategories,
           photo: `File: ${fileName}, Type: ${fileType}, URI: ${photoURI.substring(0, 50)}...`
         });
@@ -353,7 +393,6 @@ export default function NovoScreen() {
     } else {
       // Final step: create report
       createReport();
-      currentStep === 1;
     }
   };
 
@@ -395,15 +434,25 @@ export default function NovoScreen() {
             style={[styles.locationSelectButton, {backgroundColor: colors.primary}]}
             onPress={() => setShowLocationOptions(true)}
           >
-            <Text style={[styles.locationSelectText, {color: colors.textTertiary}]}>
+            <Text style={[styles.locationSelectText, {color: isDark? colors.surface : colors.textTertiary}]}>
               {locationText ? 'Alterar localização' : 'Selecionar localização'}
             </Text>
-            <Ionicons name="location" size={24} color={colors.textTertiary} />
+            <Ionicons name="location" size={24} color={isDark? colors.surface : colors.textTertiary} />
           </TouchableOpacity>
 
           {locationText && (
             <View style={[styles.locationInfoContainer, {backgroundColor: colors.surface}]}>
-              <Text style={[styles.locationInfoText, {color: colors.textPrimary}]}>{locationText} - {locationCoords?.latitude}, {locationCoords?.longitude}</Text>
+              <Text style={[styles.locationInfoTitle, {color: colors.textPrimary}]}>Morada:</Text>
+              <Text style={[styles.locationInfoText, {color: colors.textPrimary}]}>{locationText}</Text>
+
+              {locationCoords && (
+                <>
+                  <Text style={[styles.locationInfoTitle, {color: colors.textPrimary, marginTop: 8}]}>Coordenadas:</Text>
+                  <Text style={[styles.locationInfoText, {color: colors.textSecondary, fontSize: 12}]}>
+                    {locationCoords.latitude.toFixed(6)}, {locationCoords.longitude.toFixed(6)}
+                  </Text>
+                </>
+              )}
             </View>
           )}
 
@@ -449,23 +498,21 @@ export default function NovoScreen() {
                   style={[
                     styles.categoryChip,
                     {
-                      backgroundColor: isDark ? colors.surface : "#f5f5f5",
-                      borderColor: isDark ? colors.surface : "#e0e0e0"
+                      backgroundColor: isDark ? colors.surface : colors.accent,
+                      borderColor: isDark ? colors.surface : colors.accent
                     },
                     selectedCategories.includes(category.id) && [
                       styles.selectedCategoryChip,
-                      {backgroundColor: colors.primary, borderColor: colors.surface}
+                      {backgroundColor: isDark? colors.primary : colors.primary}
                     ]
                   ]}
                   onPress={() => toggleCategorySelection(category.id)}
                 >
                   <Text
                     style={[
-                      styles.categoryChipText,
-                      {color: colors.textPrimary},
+                      {color: isDark? colors.textPrimary : colors.textPrimary},
                       selectedCategories.includes(category.id) && [
-                        styles.selectedCategoryChipText,
-                        {color: colors.textTertiary}
+                        {color: isDark? colors.surface : colors.textTertiary}
                       ]
                     ]}
                   >
@@ -558,15 +605,10 @@ export default function NovoScreen() {
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.accent}]}>
-      <StatusBar
-        backgroundColor={colors.primary}
-        barStyle={isDark ? "light-content" : "dark-content"}
-      />
-
+    <View style={[styles.container, {backgroundColor: isDark? colors.background : colors.accent}]}>
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
-        <View style={[styles.header, {backgroundColor: colors.accent}]}>
+        <View style={[styles.header, {backgroundColor: isDark? colors.background : colors.accent}]}>
           <Text style={[styles.headerTitle, {color: colors.primary}]}>Criar novo report</Text>
         </View>
 
@@ -594,11 +636,11 @@ export default function NovoScreen() {
         ]}>
           {currentStep > 1 && (
             <TouchableOpacity
-              style={[styles.prevButton, {backgroundColor: colors.secondary}]}
+              style={[styles.prevButton, {borderColor: colors.secondary}]}
               onPress={prevStep}
             >
-              <Ionicons name="arrow-back" size={20} color={colors.textTertiary} />
-              <Text style={[styles.buttonText, {color: colors.textTertiary}]}>Voltar</Text>
+              <Ionicons name="arrow-back" size={20} color={colors.primary} />
+              <Text style={[styles.buttonText, {color: colors.primary}]}>Voltar</Text>
             </TouchableOpacity>
           )}
 
@@ -607,16 +649,16 @@ export default function NovoScreen() {
               styles.nextButton,
               {backgroundColor: colors.primary},
               isLoading && {backgroundColor: isDark ? "#3a3a2b" : "#8ccde2"},
-              currentStep === totalSteps ? {backgroundColor: colors.success} : null
+              currentStep === totalSteps ? {backgroundColor: colors.primary} : null
             ]}
             onPress={nextStep}
             disabled={isLoading}
           >
-            <Text style={[styles.buttonText, {color: colors.accent}]}>{getNextButtonText()}</Text>
+            <Text style={[styles.buttonText, {color: isDark? colors.surface : colors.textTertiary}]}>{getNextButtonText()}</Text>
             {currentStep < totalSteps ? (
-              <Ionicons name="arrow-forward" size={20} color={colors.textTertiary} />
+              <Ionicons name="arrow-forward" size={20} color={ isDark? colors.surface : colors.textTertiary} />
             ) : (
-              <Ionicons name="save-outline" size={20} color={colors.textTertiary} />
+              <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.textTertiary} />
             )}
           </TouchableOpacity>
         </View>
@@ -635,7 +677,7 @@ export default function NovoScreen() {
                 setShowLocationOptions(false);
               }}
             >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Usar minha localização atual</Text>
+              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Usar a minha localização atual</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -645,14 +687,14 @@ export default function NovoScreen() {
                 setShowLocationOptions(false);
               }}
             >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Escolher uma localização no mapa</Text>
+              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher uma localização no mapa</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton, {backgroundColor: colors.error}]}
+              style={[styles.modalButton, styles.cancelButton, {borderColor: colors.primary}]}
               onPress={() => setShowLocationOptions(false)}
             >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Cancelar</Text>
+              <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -673,10 +715,19 @@ export default function NovoScreen() {
                   latitudeDelta: 0.0922,
                   longitudeDelta: 0.0421,
                 }}
-                onPress={(event) => {
+                onPress={async (event) => {
                   const coords = event.nativeEvent.coordinate;
                   setLocationCoords(coords);
-                  setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+
+                  // Obter endereço a partir das coordenadas selecionadas
+                  const address = await getAddressFromCoordinates(coords);
+
+                  if (address) {
+                    setLocationText(address);
+                  } else {
+                    // Fallback para coordenadas
+                    setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+                  }
                 }}
               >
                 {locationCoords && (
@@ -692,17 +743,17 @@ export default function NovoScreen() {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton, {backgroundColor: colors.success}]}
+                style={[styles.modalButtonMap, styles.confirmButton, {backgroundColor: colors.primary}]}
                 onPress={() => setMapVisible(false)}
               >
-                <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Confirmar</Text>
+                <Text style={[styles.modalButtonTextMap, {color: colors.textTertiary}]}>Confirmar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton, {backgroundColor: colors.error}]}
+                style={[styles.modalButtonMap, styles.cancelButton, {borderColor: colors.primary}]}
                 onPress={() => setMapVisible(false)}
               >
-                <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Cancelar</Text>
+                <Text style={[styles.modalButtonTextMap, {color: colors.primary}]}>Cancelar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -722,7 +773,7 @@ export default function NovoScreen() {
                 setPhotoModalVisible(false);
               }}
             >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Tirar Foto</Text>
+              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Tirar Foto</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -732,19 +783,18 @@ export default function NovoScreen() {
                 setPhotoModalVisible(false);
               }}
             >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Escolher da Galeria</Text>
+              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher da Galeria</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton, {backgroundColor: colors.error}]}
+              style={[styles.modalButton, styles.cancelButton, {borderColor: colors.primary}]}
               onPress={() => setPhotoModalVisible(false)}
             >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Cancelar</Text>
+              <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
-
       <CustomTabBar />
     </View>
   );
@@ -797,9 +847,10 @@ const styles = StyleSheet.create({
   navigationButtons: {
     flexDirection: 'row',
     padding: 15,
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
   },
   prevButton: {
+    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
@@ -839,6 +890,11 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
   },
+  locationInfoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   locationInfoText: {
     fontSize: 14,
   },
@@ -869,12 +925,6 @@ const styles = StyleSheet.create({
   },
   selectedCategoryChip: {
     // Colors set dynamically
-  },
-  categoryChipText: {
-    fontSize: 14,
-  },
-  selectedCategoryChipText: {
-    fontWeight: '500',
   },
   photoUploadContainer: {
     width: '100%',
@@ -960,7 +1010,7 @@ const styles = StyleSheet.create({
     // Color set dynamically
   },
   cancelButton: {
-    // Color set dynamically
+    borderWidth: 1,
   },
   fullMapContainer: {
     width: '100%',
@@ -977,6 +1027,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 10,
-    
+  },
+  modalButtonTextMap: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    justifyContent: 'space-between'
+  },
+  modalButtonMap: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 0.48,
+    justifyContent: 'center',
   },
 });

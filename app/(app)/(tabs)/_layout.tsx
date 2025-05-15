@@ -1,4 +1,4 @@
-import { useTheme } from '@/constants/Colors';
+import { useTheme } from '@/app/contexts/ThemeContext';
 import { Tabs } from 'expo-router/tabs';
 
 export default function TabsLayout() {
@@ -9,8 +9,8 @@ export default function TabsLayout() {
     <Tabs
       tabBar={() => null}
       screenOptions={{
-        headerStyle: { backgroundColor: '#3498db' },
-        headerTintColor: '#fff',
+        headerStyle: { backgroundColor: isDark ? colors.background : colors.primary },
+        headerTintColor: isDark ? colors.textTertiary : colors.primary,
       }}
     >
       <Tabs.Screen

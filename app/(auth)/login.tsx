@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'r
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../../constants/Colors';
+import { useTheme } from '@/app/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
@@ -58,7 +58,6 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar style={isDark ? "light" : "dark"} />
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Reporta</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Bem-vindo de volta!</Text>

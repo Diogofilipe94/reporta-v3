@@ -3,7 +3,9 @@ import { Drawer } from 'expo-router/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { router } from 'expo-router';
-import { useTheme } from '../../constants/Colors';
+import { useTheme } from '@/app/contexts/ThemeContext';
+import { Image, View, Text, StyleSheet } from 'react-native';
+import { DrawerContentComponentProps, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 
 export default function AppLayout() {
   const { isAuthenticated, signOut } = useAuth();
@@ -15,18 +17,42 @@ export default function AppLayout() {
     }
   }, [isAuthenticated]);
 
+  // Componente personalizado para o conteúdo do drawer
+  function CustomDrawerContent(props: DrawerContentComponentProps) {
+    return (
+      <DrawerContentScrollView
+        {...props}
+        contentContainerStyle={{ flex: 1 }}
+      >
+        {/* Cabeçalho do drawer com o ícone da aplicação */}
+        <View style={[styles.drawerHeader, { backgroundColor: isDark? colors.surface : colors.accent }]}>
+
+          <Image
+            source={require('../../assets/images/logoReporta.png')}
+            style={styles.appIcon}
+          />
+          <Text style={[styles.appName, { color: colors.primary }]}>REPORTA</Text>
+        </View>
+
+        {/* Lista de itens do drawer */}
+        <DrawerItemList {...props} />
+      </DrawerContentScrollView>
+    );
+  }
+
   return (
     <Drawer
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
         headerStyle: {
-          backgroundColor: colors.primary
+          backgroundColor: isDark ? colors.background : colors.primary,
         },
         headerTintColor: colors.textTertiary,
         drawerActiveTintColor: colors.primary,
         drawerInactiveTintColor: colors.textSecondary,
         drawerActiveBackgroundColor: isDark ? colors.surface : colors.textTertiary,
         drawerInactiveBackgroundColor: colors.surface,
-        drawerType: 'slide',
+        drawerType: 'front',
         headerLeft: () => null,
         swipeEnabled: true,
         drawerPosition: 'right',
@@ -40,6 +66,9 @@ export default function AppLayout() {
         name="(tabs)"
         options={{
           title: 'REPORTA',
+          headerTitleStyle: {
+            color : isDark ? colors.accent : colors.textTertiary,
+          },
           headerTitleAlign: 'center',
           drawerActiveBackgroundColor: colors.primary + 50,
           drawerHideStatusBarOnOpen: true,
@@ -50,42 +79,46 @@ export default function AppLayout() {
           ),
         }}
       />
-
       <Drawer.Screen
         name="perfil"
         options={{
           title: 'REPORTA',
-          headerTitleAlign: 'left',
+          headerTitleStyle: {
+            color : isDark ? colors.accent : colors.textTertiary,
+          },
+          headerTitleAlign: 'center',
           drawerActiveBackgroundColor: colors.primary + 50,
           drawerHideStatusBarOnOpen: true,
-
           drawerLabel: 'Perfil',
           drawerIcon: ({ size, color }) => (
             <Ionicons name="person" size={size} color={color} />
           ),
         }}
       />
-
       <Drawer.Screen
         name="definicoes"
         options={{
           title: 'REPORTA',
-          headerTitleAlign: 'left',
+          headerTitleStyle: {
+            color : isDark ? colors.accent : colors.textTertiary,
+          },
+          headerTitleAlign: 'center',
           drawerActiveBackgroundColor: colors.primary + 50,
           drawerHideStatusBarOnOpen: true,
-
           drawerLabel: 'Definições',
           drawerIcon: ({ size, color }) => (
             <Ionicons name="settings" size={size} color={color} />
           ),
         }}
       />
-
       <Drawer.Screen
         name="sobre"
         options={{
           title: 'REPORTA',
-          headerTitleAlign: 'left',
+          headerTitleStyle: {
+            color : isDark ? colors.accent : colors.textTertiary,
+          },
+          headerTitleAlign: 'center',
           drawerActiveBackgroundColor: colors.primary + 50,
           drawerHideStatusBarOnOpen: true,
           drawerLabel: 'Sobre',
@@ -97,3 +130,22 @@ export default function AppLayout() {
     </Drawer>
   );
 }
+
+const styles = StyleSheet.create({
+  drawerHeader: {
+    height: 100,
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  appIcon: {
+    height:50,
+    objectFit: 'contain',
+
+  },
+  appName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  }
+});

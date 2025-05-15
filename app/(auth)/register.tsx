@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useTheme } from '../../constants/Colors';
+import { useTheme } from '@/app/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
@@ -236,7 +236,6 @@ export default function RegisterScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar style={isDark ? "light" : "dark"} />
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Registo</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary, opacity: 0.8 }]}>Criar uma nova conta</Text>

@@ -4,9 +4,9 @@ import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider } from './contexts/AuthContext';
-
-import { View } from 'react-native';
+import { StatusBar } from 'react-native';
 import { TabProvider } from './contexts/TabContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 
 // Manter a SplashScreen visível
 SplashScreen.preventAutoHideAsync();
@@ -29,10 +29,27 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <TabProvider>
-        <Slot />
-      </TabProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <StatusBarComponent />
+      <AuthProvider>
+        <TabProvider>
+          <Slot />
+        </TabProvider>
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+// Componente separado para StatusBar que usa useTheme
+function StatusBarComponent() {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <StatusBar
+      barStyle={isDark ? 'light-content' : 'dark-content'}
+      hidden={false}
+      translucent={false}
+      backgroundColor={isDark ? colors.background : colors.primary}
+    />
   );
 }

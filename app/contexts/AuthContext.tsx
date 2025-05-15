@@ -1,4 +1,3 @@
-// app/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -28,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   // Referência para o intervalo de verificação do token
-  const tokenCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const tokenCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const apiUrl = Platform.OS === 'android'
     ? 'http://10.0.2.2:8000/api/user/reports' // Porta do seu Laravel

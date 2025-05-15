@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { router, usePathname } from 'expo-router';
 import { useEffect } from 'react';
 import { useTabContext } from '../app/contexts/TabContext';
-import { useTheme } from '@/constants/Colors';
+import { useTheme } from '@/app/contexts/ThemeContext';
 
 export default function CustomTabBar() {
   const navigation = useNavigation();
@@ -56,7 +56,7 @@ export default function CustomTabBar() {
     <View style={[
       styles.tabBarContainer,
       {
-        backgroundColor: colors.surface,
+        backgroundColor: isDark ? colors.primary : colors.surface,
         borderTopColor: colors.divider
       }
     ]}>
@@ -69,13 +69,13 @@ export default function CustomTabBar() {
           <Ionicons
             name="home"
             size={24}
-            color={colors.textSecondary}
+            color={isDark? colors.background : colors.primary}
             style={styles.icon}
           />
           <Text
             style={[
               styles.tabText,
-              {color: activeTab === 'home' ? colors.primary : colors.textSecondary}
+              isDark? {color: activeTab === 'new' ? colors.background : colors.background} : {color: activeTab === 'new' ? colors.primary : colors.primary}
             ]}
           >
             Início
@@ -90,13 +90,13 @@ export default function CustomTabBar() {
           <Ionicons
             name="add-circle"
             size={24}
-            color={colors.textSecondary}
+            color={isDark? colors.background : colors.primary}
             style={styles.icon}
           />
           <Text
             style={[
               styles.tabText,
-              {color: activeTab === 'new' ? colors.primary : colors.textSecondary}
+              isDark? {color: activeTab === 'new' ? colors.background : colors.background} : {color: activeTab === 'new' ? colors.primary : colors.primary}
             ]}
           >
             Novo
@@ -111,14 +111,14 @@ export default function CustomTabBar() {
           <Ionicons
             name="menu"
             size={24}
-            color={colors.textSecondary}
+            color={isDark? colors.background : colors.primary}
             style={styles.icon}
           />
 
           <Text
             style={[
               styles.tabText,
-              {color: activeTab === 'menu' ? colors.primary : colors.textSecondary}
+              isDark? {color: activeTab === 'new' ? colors.background : colors.background} : {color: activeTab === 'new' ? colors.primary : colors.primary}
             ]}
           >
             Menu
@@ -128,7 +128,7 @@ export default function CustomTabBar() {
 
       {/* Margem de segurança para iOS */}
       {Platform.OS === 'ios' && (
-        <View style={[styles.iosSafeArea, { backgroundColor: colors.surface }]} />
+        <View style={[styles.iosSafeArea, { backgroundColor: isDark ? colors.primary : colors.surface }]} />
       )}
     </View>
   );
@@ -165,6 +165,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   iosSafeArea: {
-    height: 25,
+    height: 15,
   }
 });

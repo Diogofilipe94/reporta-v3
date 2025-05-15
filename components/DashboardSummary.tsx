@@ -3,11 +3,16 @@ import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import styles from '@/assets/styles/(app)/(tabs)/index.styles';
 import { UserReport } from '@/types/types';
+import { useTheme } from '@/app/contexts/ThemeContext';
+
 
 
 // Componente para o resumo/dashboard
-const DashboardSummary = ({ reports, colors }: { reports: UserReport[], colors: any }) => {
-  // Calcular estatísticas
+const DashboardSummary = ({ reports }: { reports: UserReport[], colors: any }) => {
+
+  const { colors, isDark } = useTheme();
+
+
   const stats = useMemo(() => {
     const total = reports.length;
 
@@ -28,59 +33,62 @@ const DashboardSummary = ({ reports, colors }: { reports: UserReport[], colors: 
 
   return (
     <View style={[styles.dashboardContainer, { backgroundColor: colors.surface }]}>
-      <Text style={[styles.dashboardTitle, { color: colors.textPrimary }]}>
-        Resumo
-      </Text>
+      <View style={styles.dashboardHeader}>
+        <Ionicons name="bar-chart" size={24} color={colors.primary} style={{marginHorizontal:4}}/>
+        <Text style={[styles.dashboardTitle, { color: colors.textPrimary }]}>
+          Resumo
+        </Text>
+      </View>
 
       <View style={styles.statsContainer}>
         {/* Total de Relatórios */}
-        <View style={[styles.statCard, { backgroundColor: colors.background }]}>
-          <View style={[styles.statIconContainer, { backgroundColor: colors.primary }]}>
+        <View style={[styles.statCard, { backgroundColor: isDark? colors.surface : colors.accent }]}>
+          <View style={[styles.statIconContainer, { backgroundColor: colors.secondary }]}>
             <Ionicons name="documents-outline" size={20} color="#fff" />
           </View>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+          <Text style={[styles.statValue, { color: isDark? colors.accent : colors.primary }]}>
             {stats.total}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+          <Text style={[styles.statLabel, { color: isDark? colors.accent : colors.primary }]}>
             Total
           </Text>
         </View>
 
         {/* Relatórios Pendentes */}
-        <View style={[styles.statCard, { backgroundColor: colors.background }]}>
+        <View style={[styles.statCard, { backgroundColor: isDark? colors.surface : colors.accent }]}>
           <View style={[styles.statIconContainer, { backgroundColor: colors.error }]}>
             <Ionicons name="time-outline" size={20} color="#fff" />
           </View>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+          <Text style={[styles.statValue, { color: isDark? colors.accent : colors.primary }]}>
             {stats.pendentes}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+          <Text style={[styles.statLabel, { color: isDark? colors.accent : colors.primary }]}>
             Pendentes
           </Text>
         </View>
 
         {/* Relatórios Em Análise */}
-        <View style={[styles.statCard, { backgroundColor: colors.background }]}>
+        <View style={[styles.statCard, { backgroundColor: isDark? colors.surface : colors.accent }]}>
           <View style={[styles.statIconContainer, { backgroundColor: colors.warning }]}>
             <Ionicons name="search-outline" size={20} color="#fff" />
           </View>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+          <Text style={[styles.statValue, { color: isDark? colors.accent : colors.primary }]}>
             {stats.emResolucao}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+          <Text style={[styles.statLabel, { color: isDark? colors.accent : colors.primary }]}>
             Em Análise
           </Text>
         </View>
 
         {/* Relatórios Resolvidos */}
-        <View style={[styles.statCard, { backgroundColor: colors.background }]}>
+        <View style={[styles.statCard, { backgroundColor: isDark? colors.surface : colors.accent }]}>
           <View style={[styles.statIconContainer, { backgroundColor: colors.success }]}>
             <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
           </View>
-          <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+          <Text style={[styles.statValue, { color: isDark? colors.accent : colors.primary }]}>
             {stats.resolvidos}
           </Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+          <Text style={[styles.statLabel, { color: isDark? colors.accent : colors.primary }]}>
             Resolvidos
           </Text>
         </View>
