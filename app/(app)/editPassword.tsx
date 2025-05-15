@@ -1,0 +1,374 @@
+// app/(app)/(tabs)/editar-password.tsx
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/app/contexts/ThemeContext';
+import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import CustomTabBar from '@/components/CustomTabBar';
+
+export default function EditarPasswordScreen() {
+  const { colors, isDark } = useTheme();
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Estado para os campos de palavra-passe
+  const [passwordData, setPasswordData] = useState({
+    current_password: '',
+    password: '',
+    password_confirmation: ''
+  });
+
+  // Estado para mostrar/esconder palavra-passe
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+
+  // Função para atualizar os campos de palavra-passe
+  const handleChange = (field: keyof typeof passwordData, value: string) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Função para voltar à tela anterior
+  const goBack = () => {
+    router.navigate('/(app)/definicoes');
+  };
+
+  // Função para alternar visibilidade da palavra-passe
+  const togglePasswordVisibility = (field: keyof typeof showPasswords) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
+  // Função para validar e atualizar a palavra-passe
+  const handleUpdatePassword = async () => {
+    // Validação
+    if (!passwordData.current_password || !passwordData.password || !passwordData.password_confirmation) {
+      Alert.alert('Erro', 'Todos os campos são obrigatórios.');
+      return;
+    }
+
+    if (passwordData.password !== passwordData.password_confirmation) {
+      Alert.alert('Erro', 'A nova palavra-passe e a confirmação não coincidem.');
+      return;
+    }
+
+    if (passwordData.password.length < 8) {
+      Alert.alert('Erro', 'A nova palavra-passe deve ter pelo menos 8 caracteres.');
+      return;
+    }
+
+    // Enviar para a API
+    try {
+      setIsLoading(true);
+      const token = await AsyncStorage.getItem('token');
+
+      if (!token) {
+        Alert.alert('Erro', 'Não foi possível autenticar. Por favor, faça login novamente.');
+        router.replace('/login');
+        return;
+      }
+
+      const apiUrl = Platform.OS === 'android'
+        ? 'http://10.0.2.2:8000/api/user'
+        : 'http://localhost:8000/api/user';
+
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          password: passwordData.password,
+          current_password: passwordData.current_password
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Sucesso', 'Palavra-passe atualizada com sucesso!');
+        goBack();
+      } else {
+        Alert.alert('Erro', result.message || 'Não foi possível atualizar a palavra-passe.');
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar palavra-passe:', error);
+      Alert.alert('Erro', 'Ocorreu um erro ao tentar atualizar a palavra-passe.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <View style={[styles.container, {
+      backgroundColor: isDark ? colors.background : colors.accent
+    }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: isDark ? colors.background : colors.surface }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={goBack}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+
+        <Text style={[styles.headerTitle, { color: isDark ? colors.textPrimary : colors.textPrimary }]}>
+          Alterar Palavra-passe
+        </Text>
+
+        <View style={styles.rightHeaderPlaceholder} />
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Seção de Senha Atual */}
+        <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+              Palavra-passe Atual
+            </Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? colors.card : colors.accent,
+                    color: isDark ? colors.textPrimary : colors.textPrimary,
+                    borderColor: isDark ? colors.secondary : colors.background,
+                  }
+                ]}
+                value={passwordData.current_password}
+                onChangeText={(text) => handleChange('current_password', text)}
+                placeholder="Escreva a sua palavra-passe atual"
+                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                secureTextEntry={!showPasswords.current}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => togglePasswordVisibility('current')}
+              >
+                <Ionicons
+                  name={showPasswords.current ? "eye-off-outline" : "eye-outline"}
+                  size={24}
+                  color={isDark ? colors.textSecondary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Seção de Nova Senha */}
+        <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
+
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+              Nova Palavra-passe
+            </Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? colors.card : colors.accent,
+                    color: isDark ? colors.textPrimary : colors.textPrimary,
+                    borderColor: isDark ? colors.secondary : colors.background,
+                  }
+                ]}
+                value={passwordData.password}
+                onChangeText={(text) => handleChange('password', text)}
+                placeholder="Escreva a sua nova palavra-passe"
+                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                secureTextEntry={!showPasswords.new}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => togglePasswordVisibility('new')}
+              >
+                <Ionicons
+                  name={showPasswords.new ? "eye-off-outline" : "eye-outline"}
+                  size={24}
+                  color={isDark ? colors.textSecondary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.inputNote, { color: isDark ? colors.textTertiary : colors.textTertiary }]}>
+              A palavra-passe deve conter pelo menos 8 caracteres
+            </Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+              Confirmar Nova Palavra-passe
+            </Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? colors.card : colors.accent,
+                    color: isDark ? colors.textPrimary : colors.textPrimary,
+                    borderColor: isDark ? colors.secondary : colors.background,
+                  }
+                ]}
+                value={passwordData.password_confirmation}
+                onChangeText={(text) => handleChange('password_confirmation', text)}
+                placeholder="Repita a sua nova palavra-passe"
+                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                secureTextEntry={!showPasswords.confirm}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => togglePasswordVisibility('confirm')}
+              >
+                <Ionicons
+                  name={showPasswords.confirm ? "eye-off-outline" : "eye-outline"}
+                  size={24}
+                  color={isDark ? colors.textSecondary : colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+            {passwordData.password !== passwordData.password_confirmation && passwordData.password_confirmation !== '' && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                As palavra-passe não coincidem
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* Botão de Salvar */}
+        <TouchableOpacity
+          style={[
+            styles.saveButton,
+            { backgroundColor: colors.primary }
+          ]}
+          onPress={handleUpdatePassword}
+          disabled={isLoading}
+          activeOpacity={0.8}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.accent} />
+              <Text style={[styles.saveButtonText, {color: isDark? colors.surface : colors.accent }]}>Guardar Alterações</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+      <CustomTabBar />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  rightHeaderPlaceholder: {
+    width: 40,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  section: {
+    borderRadius: 16,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  passwordContainer: {
+    position: 'relative',
+  },
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+  },
+  inputNote: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  errorText: {
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

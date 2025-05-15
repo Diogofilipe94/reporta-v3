@@ -1,19 +1,20 @@
 // app/(app)/(tabs)/definicoes.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView, Switch, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomTabBar from '@/components/CustomTabBar';
 import { useAuth } from '../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/app/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function DefinicoesScreen() {
   const { signOut } = useAuth();
   const { colors, isDark, setColorScheme } = useTheme();
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkMode, setDarkMode] = useState(isDark);
+  const [selectedLanguage, setSelectedLanguage] = useState('pt');
 
   // Lista de idiomas disponíveis
   const languages = [
@@ -22,19 +23,12 @@ export default function DefinicoesScreen() {
     { code: 'es', name: 'Español' }
   ];
 
-  const [selectedLanguage, setSelectedLanguage] = useState('pt');
-
   // Carregar preferências salvas
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const savedTheme = await AsyncStorage.getItem('userTheme');
         const savedNotifications = await AsyncStorage.getItem('notifications');
         const savedLanguage = await AsyncStorage.getItem('language');
-
-        if (savedTheme !== null) {
-          setDarkMode(savedTheme === 'dark');
-        }
 
         if (savedNotifications !== null) {
           setNotificationsEnabled(savedNotifications === 'true');
@@ -59,7 +53,6 @@ export default function DefinicoesScreen() {
     setColorScheme(isDark ? 'light' : 'dark');
   };
 
-
   const toggleNotifications = async () => {
     const newValue = !notificationsEnabled;
     setNotificationsEnabled(newValue);
@@ -69,17 +62,14 @@ export default function DefinicoesScreen() {
   const handleSelectLanguage = async (code: string) => {
     setSelectedLanguage(code);
     await AsyncStorage.setItem('language', code);
-    // Implementar a lógica para alterar o idioma da aplicação
   };
 
   const navigateToEditProfile = () => {
-    // Navegação para a tela de edição de perfil
-    router.push('/editar-perfil');
+    router.push('/(app)/editProfile');
   };
 
   const navigateToChangePassword = () => {
-    // Navegação para a tela de alteração de senha
-    router.push('/editar-password');
+    router.push('/(app)/editPassword');
   };
 
   return (
@@ -120,11 +110,11 @@ export default function DefinicoesScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={20}
-                color={isDark ? '#666' : '#999'}
+                color={isDark ? colors.textTertiary : colors.textTertiary}
               />
             </TouchableOpacity>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
 
             <TouchableOpacity
               style={styles.optionItem}
@@ -144,7 +134,7 @@ export default function DefinicoesScreen() {
               <Ionicons
                 name="chevron-forward"
                 size={20}
-                color={isDark ? '#666' : '#999'}
+                color={isDark ? colors.textTertiary : colors.textTertiary}
               />
             </TouchableOpacity>
           </View>
@@ -158,25 +148,25 @@ export default function DefinicoesScreen() {
             <View style={styles.optionItem}>
               <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
                 <Ionicons
-                  name={darkMode ? "moon-outline" : "sunny-outline"}
+                  name={isDark ? "moon-outline" : "sunny-outline"}
                   size={22}
                   color={colors.primary}
                 />
               </View>
               <View style={styles.optionTextContainer}>
                 <Text style={[styles.optionTitle, { color: isDark ? colors.textPrimary : colors.textPrimary }]}>
-                  Tema {darkMode ? 'escuro' : 'claro'}
+                  Tema {isDark ? 'escuro' : 'claro'}
                 </Text>
                 <Text style={[styles.optionDescription, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-                  {darkMode ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+                  {isDark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
                 </Text>
               </View>
               <Switch
                 trackColor={{ false: '#767577', true: `${colors.primary}80` }}
-                thumbColor={darkMode ? colors.primary : '#f4f3f4'}
+                thumbColor={isDark ? colors.primary : '#f4f3f4'}
                 ios_backgroundColor="#3e3e3e"
                 onValueChange={toggleTheme}
-                value={darkMode}
+                value={isDark}
               />
             </View>
           </View>
@@ -224,7 +214,7 @@ export default function DefinicoesScreen() {
                 <View style={[
                   styles.radioContainer,
                   {
-                    borderColor: selectedLanguage === language.code ? colors.primary : isDark ? '#555' : '#ddd',
+                    borderColor: selectedLanguage === language.code ? colors.primary : isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
                     backgroundColor: selectedLanguage === language.code ? colors.primary + '15' : 'transparent'
                   }
                 ]}>
@@ -257,12 +247,12 @@ export default function DefinicoesScreen() {
             <Ionicons
               name="log-out-outline"
               size={18}
-              color={isDark ? colors.primary : colors.secondary}
+              color={isDark ? `${colors.primary}80` : colors.primary}
             />
             <Text
               style={[
                 styles.logoutButtonText,
-                { color: isDark ? colors.primary : colors.secondary }
+                { color: isDark ? `${colors.primary}80` : colors.primary }
               ]}
             >
               Terminar Sessão
@@ -352,7 +342,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(150,150,150,0.15)',
     marginLeft: 68,
   },
   radioContainer: {

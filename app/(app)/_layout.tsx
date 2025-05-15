@@ -127,6 +127,20 @@ export default function AppLayout() {
           ),
         }}
       />
+      <Drawer.Screen
+        name="editProfile"
+        options={{
+          title: 'REPORTA',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
+      <Drawer.Screen
+        name="editPassword"
+        options={{
+          title: 'REPORTA',
+          drawerItemStyle: { display: 'none' },
+        }}
+      />
     </Drawer>
   );
 }

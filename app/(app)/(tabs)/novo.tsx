@@ -499,7 +499,7 @@ export default function NovoScreen() {
                     styles.categoryChip,
                     {
                       backgroundColor: isDark ? colors.surface : colors.accent,
-                      borderColor: isDark ? colors.surface : colors.accent
+                      borderColor: isDark ? colors.surface : colors.background
                     },
                     selectedCategories.includes(category.id) && [
                       styles.selectedCategoryChip,
@@ -746,7 +746,7 @@ export default function NovoScreen() {
                 style={[styles.modalButtonMap, styles.confirmButton, {backgroundColor: colors.primary}]}
                 onPress={() => setMapVisible(false)}
               >
-                <Text style={[styles.modalButtonTextMap, {color: colors.textTertiary}]}>Confirmar</Text>
+                <Text style={[styles.modalButtonTextMap, {color: colors.surface}]}>Confirmar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

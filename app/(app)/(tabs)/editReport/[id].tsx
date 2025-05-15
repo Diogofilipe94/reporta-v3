@@ -666,7 +666,7 @@ export default function EditReportScreen() {
                 setShowLocationOptions(false);
               }}
             >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Usar minha localização atual</Text>
+              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Usar minha localização atual</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -676,7 +676,7 @@ export default function EditReportScreen() {
                 setShowLocationOptions(false);
               }}
             >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Escolher uma localização no mapa</Text>
+              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher uma localização no mapa</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -731,14 +731,14 @@ export default function EditReportScreen() {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton, {backgroundColor: colors.success}]}
+                style={[styles.modalButtonMap, styles.confirmButton, {backgroundColor: colors.primary}]}
                 onPress={() => setMapVisible(false)}
               >
-                <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Confirmar</Text>
+                <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Confirmar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelModalButton, {borderColor: colors.primary}]}
+                style={[styles.modalButtonMap, styles.cancelModalButton, {borderColor: colors.primary}]}
                 onPress={() => setMapVisible(false)}
               >
                 <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
@@ -1012,5 +1012,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
+  },
+  modalButtonMap: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 0.48,
+    justifyContent: 'center',
   },
 });

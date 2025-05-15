@@ -5,6 +5,8 @@ import { router, usePathname } from 'expo-router';
 import { useEffect } from 'react';
 import { useTabContext } from '../app/contexts/TabContext';
 import { useTheme } from '@/app/contexts/ThemeContext';
+import Fontisto from '@expo/vector-icons/Fontisto';
+
 
 export default function CustomTabBar() {
   const navigation = useNavigation();
@@ -67,7 +69,7 @@ export default function CustomTabBar() {
           activeOpacity={0.7}
         >
           <Ionicons
-            name="home"
+            name="home-outline"
             size={24}
             color={isDark? colors.background : colors.primary}
             style={styles.icon}
@@ -87,8 +89,8 @@ export default function CustomTabBar() {
           onPress={goToNew}
           activeOpacity={0.7}
         >
-          <Ionicons
-            name="add-circle"
+          <Fontisto
+            name="plus-a"
             size={24}
             color={isDark? colors.background : colors.primary}
             style={styles.icon}
@@ -109,12 +111,11 @@ export default function CustomTabBar() {
           activeOpacity={0.7}
         >
           <Ionicons
-            name="menu"
+            name="list"
             size={24}
             color={isDark? colors.background : colors.primary}
             style={styles.icon}
           />
-
           <Text
             style={[
               styles.tabText,
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   icon: {
-    marginBottom: 4,
+    minHeight: 10,
     height: 24,
     textAlign: 'center',
   },
@@ -166,5 +167,7 @@ const styles = StyleSheet.create({
   },
   iosSafeArea: {
     height: 15,
-  }
+  },
+
+
 });
