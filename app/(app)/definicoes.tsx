@@ -242,12 +242,12 @@ export default function DefinicoesScreen() {
             <Ionicons
               name="log-out-outline"
               size={18}
-              color={isDark ? `${colors.primary}80` : colors.primary}
+              color={isDark ? colors.primary : colors.secondary}
             />
             <Text
               style={[
                 styles.logoutButtonText,
-                { color: isDark ? `${colors.primary}80` : colors.primary }
+                { color: isDark ? colors.primary : colors.secondary }
               ]}
             >
               Terminar Sessão

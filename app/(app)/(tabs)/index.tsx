@@ -273,11 +273,17 @@ export default function HomeScreen() {
                 </View>
               ) : (
                 <View style={styles.emptyReportsContainer}>
-                  <Ionicons name="document-outline" size={50} color={colors.textSecondary} />
+                  <Ionicons name="construct-outline" size={50} color={colors.textSecondary} />
                   <Text style={[styles.emptyReportsText, { color: colors.textSecondary }]}>
-                    Nenhum relatório encontrado.
+                    Nenhum Report encontrado.
                   </Text>
+
+                  <Text style={[styles.emptyReportsText, { color: colors.textSecondary }]}>
+                    Crie um novo report para começar.
+                  </Text>
+
                 </View>
+
               )}
             </View>
           </>

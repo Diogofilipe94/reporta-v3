@@ -132,6 +132,9 @@ export default function AppLayout() {
         name="editProfile"
         options={{
           title: 'REPORTA',
+          headerTitleStyle: {
+            color : isDark ? colors.accent : colors.textTertiary,
+          },
           drawerItemStyle: { display: 'none' },
         }}
       />
@@ -139,6 +142,9 @@ export default function AppLayout() {
         name="editPassword"
         options={{
           title: 'REPORTA',
+          headerTitleStyle: {
+            color : isDark ? colors.accent : colors.textTertiary,
+          },
           drawerItemStyle: { display: 'none' },
         }}
       />

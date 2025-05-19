@@ -360,6 +360,25 @@ export default function ReportDetailsScreen() {
             </View>
           </View>
 
+          {/* Comentário - Nova seção */}
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="chatbubble-outline" size={24} color={colors.primary} />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Comentário</Text>
+              {report.comment ? (
+                <Text style={[styles.infoText, { color: colors.textPrimary }]}>
+                  {report.comment}
+                </Text>
+              ) : (
+                <Text style={[styles.infoText, { color: colors.textSecondary, fontStyle: 'italic' }]}>
+                  Sem comentário
+                </Text>
+              )}
+            </View>
+          </View>
+
           {/* Mapa com a localização */}
           {coordinates && (
             <View style={styles.mapSection}>

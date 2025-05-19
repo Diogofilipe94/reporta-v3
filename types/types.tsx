@@ -25,6 +25,7 @@ export type UserReport = {
   user_id: number;
   status_id: number;
   created_at: string;
+  comment:string
   updated_at: string;
   photo_url: string;
   status: Status;
