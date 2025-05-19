@@ -33,7 +33,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    marginHorizontal: 16,
   },
   dashboardTitle: {
     fontSize: 22,
@@ -66,7 +65,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
   },
   sectionHeader: {

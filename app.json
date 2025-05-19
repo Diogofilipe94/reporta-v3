@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "reporta-v3",
-    "slug": "reporta-v3",
+    "name": "Reporta",
+    "slug": "reporta",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "pt.diogotavares.reporta",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -38,6 +42,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "69960918-005c-4499-a3d6-8b8800967e52"
+      }
     }
   }
 }

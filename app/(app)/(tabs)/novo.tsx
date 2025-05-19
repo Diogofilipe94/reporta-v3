@@ -1,7 +1,7 @@
 import CustomTabBar from '@/components/CustomTabBar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, SafeAreaView, StatusBar, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, SafeAreaView, StatusBar, Platform, TextInput, ScrollView } from 'react-native';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -14,48 +14,55 @@ import { Category } from '@/types/types';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function NovoScreen() {
-  // Get theme colors
   const { colors, isDark } = useTheme();
 
-  // Wizard step state
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 4; // Aumentado para 4 passos
 
-  // Form data
   const [locationText, setLocationText] = useState('');
   const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [photo, setPhoto] = useState('');
   const [photoURI, setPhotoURI] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [comment, setComment] = useState(''); // Novo estado para o comentário
 
-  // UI states
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
   const [showLocationOptions, setShowLocationOptions] = useState(false);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const BACKEND_BASE_URL = Platform.select({
-    ios: 'http://localhost:8000',
-    android: 'https://reporta.up.railway.app/api/',
-    default: 'http://127.0.0.1:8000'
+    ios: 'https://reporta.up.railway.app/api',
+    android: 'https://reporta.up.railway.app/api',
+    default: 'https://reporta.up.railway.app/api'
   });
+
+  // Função para obter URL de imagem utilizando o endpoint dedicado a fotos
+  const getPhotoUrl = (filename: string | null) => {
+    if (!filename) return null;
+
+    // Extrai apenas o nome do arquivo, ignorando qualquer caminho
+    const baseFilename = filename.split('/').pop() || filename;
+
+    // Usa o novo endpoint de API para fotos
+    return `https://reporta.up.railway.app/api/photos/${baseFilename}`;
+  };
 
   const router = useRouter();
 
-  // Fetch categories when component mounts
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  // Function to fetch categories from the API
   const fetchCategories = async () => {
     try {
       setFetchingCategories(true);
 
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`${BACKEND_BASE_URL}/api/categories`, {
+      const response = await fetch(`${BACKEND_BASE_URL}/categories`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -78,7 +85,6 @@ export default function NovoScreen() {
     }
   };
 
-  // Função auxiliar para obter o endereço a partir das coordenadas
   const getAddressFromCoordinates = async (coords: { latitude: number; longitude: number }) => {
     try {
       const reverseGeocode = await Location.reverseGeocodeAsync({
@@ -89,7 +95,7 @@ export default function NovoScreen() {
       if (reverseGeocode && reverseGeocode.length > 0) {
         const address = reverseGeocode[0];
 
-        // Criar uma morada mais completa com todos os dados disponíveis
+        // Create a more complete address with all available data
         const addressComponents = [
           address.name,
           address.street,
@@ -99,7 +105,7 @@ export default function NovoScreen() {
           address.city,
           address.region,
           address.country
-        ].filter(Boolean); // Remove elementos vazios/nulos
+        ].filter(Boolean); // Remove empty/null elements
 
         return addressComponents.join(', ');
       }
@@ -110,7 +116,6 @@ export default function NovoScreen() {
     }
   };
 
-  // Request permission and get current location with complete address
   const getCurrentLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -121,7 +126,7 @@ export default function NovoScreen() {
       }
 
       const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Highest,
       });
 
       const locationData = {
@@ -131,13 +136,13 @@ export default function NovoScreen() {
 
       setLocationCoords(locationData);
 
-      // Obter endereço completo a partir das coordenadas
+      // Get complete address from coordinates
       const address = await getAddressFromCoordinates(locationData);
 
       if (address) {
         setLocationText(address);
       } else {
-        // Fallback para coordenadas
+        // Fallback to coordinates
         setLocationText(`${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
       }
     } catch (error) {
@@ -146,7 +151,6 @@ export default function NovoScreen() {
     }
   };
 
-  // Toggle category selection
   const toggleCategorySelection = (categoryId: number) => {
     setSelectedCategories(prevSelected => {
       // If already selected, remove it
@@ -160,11 +164,10 @@ export default function NovoScreen() {
     });
   };
 
-  // Take photo using camera
   const takePhoto = async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -179,7 +182,6 @@ export default function NovoScreen() {
     }
   };
 
-  // Pick image from gallery
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -198,7 +200,6 @@ export default function NovoScreen() {
     }
   };
 
-  // Process image to ensure it meets requirements
   const processImageForUpload = async (uri: string) => {
     try {
       // Check file type
@@ -217,35 +218,35 @@ export default function NovoScreen() {
         const fileSizeInMB = fileInfo.size / (1024 * 1024);
         console.log(`Tamanho original da imagem: ${fileSizeInMB.toFixed(4)}MB`);
 
-        // Redimensiona e comprime a imagem para garantir compatibilidade
+        // Resize and compress the image to ensure compatibility
         console.log('Iniciando compressão da imagem...');
 
-        // Primeiro redimensiona para um tamanho menor usando a API atual
+        // First resize to a smaller size using the current API
         const resizedImage = await ImageManipulator.manipulateAsync(
           uri,
-          [{ resize: { width: 600 } }], // Tamanho menor (resolução média)
+          [{ resize: { width: 800 } }], // Slightly larger size for better quality
           {
             compress: 1,
             format: ImageManipulator.SaveFormat.JPEG
           }
         );
 
-        // Depois comprime a imagem redimensionada
+        // Then compress the resized image
         const compressedImage = await ImageManipulator.manipulateAsync(
           resizedImage.uri,
-          [], // Sem manipulações adicionais
+          [], // No additional manipulations
           {
-            compress: 0.5, // 50% de compressão
+            compress: 0.7, // 70% quality - better balance of size and quality
             format: ImageManipulator.SaveFormat.JPEG
           }
         );
 
-        // Verifica o tamanho final
+        // Check final size
         const compressedInfo = await FileSystem.getInfoAsync(compressedImage.uri);
         const compressedSizeMB = compressedInfo.exists ? compressedInfo.size / (1024 * 1024) : 0;
         console.log(`Tamanho após compressão: ${compressedSizeMB.toFixed(4)}MB`);
 
-        // Normalizar o URI para iOS
+        // Normalize the URI for iOS
         const normalizedUri = Platform.OS === 'ios' ? compressedImage.uri.replace('file://', '') : compressedImage.uri;
         setPhotoURI(normalizedUri);
         setPhoto(normalizedUri);
@@ -256,7 +257,6 @@ export default function NovoScreen() {
     }
   };
 
-  // Create the report with all collected information
   async function createReport() {
     try {
       if (!locationCoords || !locationText) {
@@ -275,107 +275,133 @@ export default function NovoScreen() {
       }
 
       setIsLoading(true);
+      setUploadProgress(0.1); // Start progress
+
       const token = await AsyncStorage.getItem('token');
 
+      // Criar FormData para upload multipart/form-data
+      const formData = new FormData();
+
+      // Enviar endereço e coordenadas separadamente
+      formData.append('address', locationText);
+      formData.append('latitude', locationCoords.latitude.toString());
+      formData.append('longitude', locationCoords.longitude.toString());
+
+      // Para compatibilidade com o backend atual:
+      const coordsString = `${locationCoords.latitude.toFixed(6)}, ${locationCoords.longitude.toFixed(6)}`;
+      const locationString = `${locationText} - ${coordsString}`;
+      formData.append('location', locationString);
+
+      // Adicionar comentário
+      formData.append('comment', comment);
+
+      // Adicionar categorias corretamente
+      selectedCategories.forEach(categoryId => {
+        formData.append('category_id[]', categoryId.toString());
+      });
+
+      // Configurar foto para upload
+      const fileName = photoURI.split('/').pop() || 'photo.jpg';
+      const fileType = fileName.endsWith('.png')
+        ? 'image/png'
+        : fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')
+          ? 'image/jpeg'
+          : 'image/jpg';
+
+      formData.append('photo', {
+        uri: Platform.OS === 'ios' ? photoURI.replace('file://', '') : photoURI,
+        name: fileName,
+        type: fileType
+      } as any);
+
+      console.log('Sending data to API:', {
+        address: locationText,
+        latitude: locationCoords.latitude,
+        longitude: locationCoords.longitude,
+        location: locationString,
+        comment: comment,
+        category_id: selectedCategories,
+        photo: `File: ${fileName}, Type: ${fileType}, URI: ${photoURI.substring(0, 50)}...`
+      });
+
+      // Simular progresso de upload já que fetch não tem evento onprogress nativo
+      setUploadProgress(0.3);
+
+      // Usar um intervalo para simular o progresso do upload
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          // Incrementar gradualmente até 0.9 (90%)
+          const newProgress = prev + 0.05;
+          return newProgress < 0.9 ? newProgress : 0.9;
+        });
+      }, 300);
+
       try {
-        // Backend is configured to receive a file using multipart/form-data
-        const formData = new FormData();
-
-        // Enviar morada e coordenadas separadamente
-        formData.append('address', locationText); // Morada formatada para exibição
-        formData.append('latitude', locationCoords.latitude.toString());
-        formData.append('longitude', locationCoords.longitude.toString());
-
-        // Para compatibilidade com o backend atual, se necessário:
-        // Format location as "address - coordinates" como antes
-        const coordsString = `${locationCoords.latitude.toFixed(6)}, ${locationCoords.longitude.toFixed(6)}`;
-        const locationString = `${locationText} - ${coordsString}`;
-        formData.append('location', locationString);
-
-        // Adicionar categorias corretamente - enviar cada ID separadamente com o mesmo nome
-        selectedCategories.forEach(categoryId => {
-          formData.append('category_id[]', categoryId.toString());
-        });
-
-        // Fix photo upload - make sure it's properly formatted for multipart/form-data
-        const fileName = photoURI.split('/').pop() || 'photo.jpg';
-        const fileType = fileName.endsWith('.png')
-          ? 'image/png'
-          : fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')
-            ? 'image/jpeg'
-            : 'image/jpg';
-
-        // Use a more explicit approach for appending the photo
-        formData.append('photo', {
-          uri: Platform.OS === 'ios' ? photoURI.replace('file://', '') : photoURI,
-          name: fileName,
-          type: fileType
-        } as any);
-
-        console.log('Sending data to API:', {
-          address: locationText,
-          latitude: locationCoords.latitude,
-          longitude: locationCoords.longitude,
-          location: locationString, // Campo original para compatibilidade
-          category_id: selectedCategories,
-          photo: `File: ${fileName}, Type: ${fileType}, URI: ${photoURI.substring(0, 50)}...`
-        });
-
-        // Send using FormData - don't specify content-type, let it be set automatically
-        const response = await fetch('http://127.0.0.1:8000/api/reports', {
+        // Fazer a requisição usando fetch
+        const response = await fetch(`${BACKEND_BASE_URL}/reports`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
-            // Let FormData set its own Content-Type with boundary
+            'Authorization': `Bearer ${token}`
           },
           body: formData
         });
 
-        // Get response as text first for debugging
-        const responseText = await response.text();
+        // Limpar o intervalo de progresso
+        clearInterval(progressInterval);
 
-        // Try to parse the response as JSON
-        let data;
-        try {
-          data = JSON.parse(responseText);
-          console.log('API Response:', data);
-        } catch (e) {
-          console.error('Failed to parse response as JSON:', responseText);
-          throw new Error('Invalid response format from server');
-        }
+        // Definir progresso como 100%
+        setUploadProgress(1.0);
 
+        // Verificar se a resposta foi bem-sucedida
         if (response.ok) {
+          const data = await response.json();
+          console.log('API Response:', data);
+
           Alert.alert('Success', 'Report created successfully!');
+
+          // Resetar todos os estados
           setLocationText('');
           setPhoto('');
           setPhotoURI('');
           setSelectedCategories([]);
           setLocationCoords(null);
+          setComment('');
+          setCurrentStep(1);
+
+          // Navegar de volta
           router.push("/(app)/(tabs)");
         } else {
-          console.error('API Error:', data);
-          if (data.messages) {
-            const errorMessages = Object.values(data.messages).flat().join('\n');
-            Alert.alert('Validation Error', errorMessages);
-          } else {
-            Alert.alert('Error', data.error || 'Error creating report');
+          // Processar erro da API
+          const errorData = await response.json();
+          console.error('API Error:', errorData);
+
+          let errorMessage = 'Error creating report';
+          if (errorData.messages) {
+            const errorMessages = Object.values(errorData.messages).flat().join('\n');
+            errorMessage = errorMessages;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
           }
+
+          Alert.alert('Error', errorMessage);
         }
       } catch (error) {
+        clearInterval(progressInterval);
         console.error('Request error:', error);
         Alert.alert('Connection Error', 'Could not connect to server.');
+      } finally {
+        setIsLoading(false);
+        setUploadProgress(0);
       }
     } catch (error) {
       console.error('General error:', error);
       Alert.alert('Error', 'An error occurred while creating the report');
-    } finally {
       setIsLoading(false);
-      setCurrentStep(1);
+      setUploadProgress(0);
     }
   }
 
-  // Functions to navigate through steps
   const nextStep = () => {
     // Validate current step before proceeding
     if (currentStep === 1 && (!locationCoords || !locationText)) {
@@ -385,6 +411,11 @@ export default function NovoScreen() {
 
     if (currentStep === 2 && selectedCategories.length === 0) {
       Alert.alert('Erro', 'Por favor, selecione pelo menos uma categoria para continuar');
+      return;
+    }
+
+    if (currentStep === 3 && !photoURI) {
+      Alert.alert('Erro', 'Por favor, adicione uma foto para continuar');
       return;
     }
 
@@ -402,25 +433,44 @@ export default function NovoScreen() {
     }
   };
 
-  // Render progress indicator
   const renderProgressIndicator = () => {
-    // Calculate progress based on current step (approximately 33% per step)
+    // Calculate progress based on current step
     const progress = (currentStep) / totalSteps;
 
     return (
       <View style={styles.progressContainer}>
-        <Progress.Circle
-          size={120}
-          progress={progress}
-          thickness={8}
-          color={colors.primary}
-          unfilledColor={isDark ? colors.divider : "#e0e0e0"}
-          borderWidth={4}
-          borderColor={colors.secondary}
-          showsText={true}
-          formatText={() => `${currentStep}/${totalSteps}`}
-          style={{ marginBottom: 10 }}
-        />
+        {isLoading && currentStep === totalSteps ? (
+          <View style={styles.uploadProgressContainer}>
+            <Progress.Circle
+              size={120}
+              progress={uploadProgress}
+              thickness={8}
+              color={colors.primary}
+              unfilledColor={isDark ? colors.divider : "#e0e0e0"}
+              borderWidth={4}
+              borderColor={colors.secondary}
+              showsText={true}
+              formatText={() => `${Math.round(uploadProgress * 100)}%`}
+              style={{ marginBottom: 10 }}
+            />
+            <Text style={[styles.uploadProgressText, {color: colors.textPrimary}]}>
+              Enviando dados...
+            </Text>
+          </View>
+        ) : (
+          <Progress.Circle
+            size={120}
+            progress={progress}
+            thickness={8}
+            color={colors.primary}
+            unfilledColor={isDark ? colors.divider : "#e0e0e0"}
+            borderWidth={4}
+            borderColor={colors.secondary}
+            showsText={true}
+            formatText={() => `${currentStep}/${totalSteps}`}
+            style={{ marginBottom: 10 }}
+          />
+        )}
       </View>
     );
   };
@@ -568,7 +618,36 @@ export default function NovoScreen() {
     );
   };
 
-  // Determine which step to render
+  // Novo Step 4: Comentário
+  const renderCommentStep = () => {
+    return (
+      <ScrollView style={styles.stepContainer}>
+        <View style={styles.sectionContent}>
+          <Text style={[styles.commentLabel, {color: colors.textPrimary}]}>
+            Adicione um comentário sobre este report (opcional):
+          </Text>
+          <TextInput
+            style={[
+              styles.commentInput,
+              {
+                backgroundColor: isDark ? colors.surface : '#f9f9f9',
+                color: colors.textPrimary,
+                borderColor: colors.divider
+              }
+            ]}
+            placeholder="Descreva o problema ou adicione detalhes relevantes..."
+            placeholderTextColor={colors.textSecondary}
+            multiline={true}
+            numberOfLines={6}
+            textAlignVertical="top"
+            value={comment}
+            onChangeText={setComment}
+          />
+        </View>
+      </ScrollView>
+    );
+  };
+
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1:
@@ -577,6 +656,8 @@ export default function NovoScreen() {
         return renderCategoryStep();
       case 3:
         return renderPhotoStep();
+      case 4:
+        return renderCommentStep();
       default:
         return renderLocationStep();
     }
@@ -591,6 +672,8 @@ export default function NovoScreen() {
         return "Categorias";
       case 3:
         return "Foto";
+      case 4:
+        return "Comentário";
       default:
         return "Localização";
     }
@@ -638,6 +721,7 @@ export default function NovoScreen() {
             <TouchableOpacity
               style={[styles.prevButton, {borderColor: colors.secondary}]}
               onPress={prevStep}
+              disabled={isLoading}
             >
               <Ionicons name="arrow-back" size={20} color={colors.primary} />
               <Text style={[styles.buttonText, {color: colors.primary}]}>Voltar</Text>
@@ -648,7 +732,7 @@ export default function NovoScreen() {
             style={[
               styles.nextButton,
               {backgroundColor: colors.primary},
-              isLoading && {backgroundColor: isDark ? "#3a3a2b" : "#8ccde2"},
+              isLoading && {opacity: 0.7},
               currentStep === totalSteps ? {backgroundColor: colors.primary} : null
             ]}
             onPress={nextStep}
@@ -822,6 +906,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
   },
+  uploadProgressContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadProgressText: {
+    marginTop: 5,
+    fontSize: 14,
+    fontWeight: '500',
+  },
   progressText: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -965,6 +1058,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
+  },
+  // Estilos novos para o campo de comentário
+  commentLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 10,
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 150,
   },
   modalOverlay: {
     position: 'absolute',

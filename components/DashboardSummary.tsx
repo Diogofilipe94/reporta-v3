@@ -12,7 +12,6 @@ const DashboardSummary = ({ reports }: { reports: UserReport[], colors: any }) =
 
   const { colors, isDark } = useTheme();
 
-
   const stats = useMemo(() => {
     const total = reports.length;
 

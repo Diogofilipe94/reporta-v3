@@ -60,6 +60,7 @@ export default function AppLayout() {
           backgroundColor: colors.surface,
           width: 320,
         },
+        headerRight: () => null,
       }}
     >
       <Drawer.Screen

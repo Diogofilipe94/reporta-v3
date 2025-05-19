@@ -15,22 +15,26 @@ export default function ReportDetailsScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
 
-const BACKEND_BASE_URL = Platform.select({
-  ios: 'http://localhost:8000',
-  android: 'https://reporta.up.railway.app/api/',
-  default: 'http://127.0.0.1:8000'
-});
-  // Obter URL completa da imagem
+  const BACKEND_BASE_URL = Platform.select({
+    ios: 'https://reporta.up.railway.app',
+    android: 'https://reporta.up.railway.app',
+    default: 'https://reporta.up.railway.app'
+  });
+
+  // Função atualizada para usar o endpoint de photos
   const getFullImageUrl = (relativePath: string | null) => {
     if (!relativePath) return null;
 
+    // Se já for uma URL completa, retorna como está
     if (relativePath.startsWith('http')) {
       return relativePath;
     }
 
-    const cleanPath = relativePath.replace(/^\/+/, '');
-    const url = `${BACKEND_BASE_URL}/storage/${cleanPath}`;
-    return url;
+    // Extrai apenas o nome do arquivo, ignorando qualquer caminho
+    const fileName = relativePath.split('/').pop() || relativePath;
+
+    // Usa o novo endpoint de API para fotos
+    return `${BACKEND_BASE_URL}/api/photos/${fileName}`;
   };
 
   const [isLoading, setIsLoading] = useState(true);
@@ -39,34 +43,33 @@ const BACKEND_BASE_URL = Platform.select({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // Estilo do status
   const getStatusStyle = (status: string | null | undefined) => {
     const statusLower = status?.toLowerCase() || '';
 
-
-
     if (statusLower === 'pendente') {
       return {
-        icon: <Ionicons name="time-outline" size={24} color= {isDark? colors.accent : colors.textTertiary} />,
+        icon: <Ionicons name="time-outline" size={24} color={isDark ? colors.accent : colors.textTertiary} />,
         bgColor: colors.error,
         textColor: colors.textPrimary
       };
     } else if (statusLower === 'em resolução' || statusLower === 'em analise' || statusLower === 'em análise') {
       return {
-        icon: <Ionicons name="search-outline" size={24} color= {isDark? colors.accent : colors.textTertiary} />,
+        icon: <Ionicons name="search-outline" size={24} color={isDark ? colors.accent : colors.textTertiary} />,
         bgColor: colors.warning,
         textColor: colors.textPrimary
       };
     } else if (statusLower === 'resolvido') {
       return {
-        icon: <Ionicons name="checkmark-circle-outline" size={24} color= {isDark? colors.accent : colors.textTertiary} />,
+        icon: <Ionicons name="checkmark-circle-outline" size={24} color={isDark ? colors.accent : colors.textTertiary} />,
         bgColor: colors.success,
         textColor: colors.textPrimary
       };
     } else {
       return {
-        icon: <Ionicons name="help-circle-outline" size={24} color= {isDark? colors.accent : colors.textTertiary} />,
+        icon: <Ionicons name="help-circle-outline" size={24} color={isDark ? colors.accent : colors.textTertiary} />,
         bgColor: '#9CA3AF',
         textColor: '#4B5563'
       };
@@ -112,6 +115,7 @@ const BACKEND_BASE_URL = Platform.select({
   // Tratar erros de carregamento de imagem
   const handleImageError = (error: any) => {
     console.error('Erro ao carregar imagem:', error);
+    setImageError(true);
   };
 
   // Buscar detalhes do report
@@ -146,6 +150,8 @@ const BACKEND_BASE_URL = Platform.select({
 
         const data = await response.json();
         setReport(data);
+        // Reset image error when loading new report
+        setImageError(false);
       } catch (error) {
         console.error('Erro ao buscar detalhes do report:', error);
         setError('Não foi possível carregar os detalhes. Tente novamente.');
@@ -237,17 +243,20 @@ const BACKEND_BASE_URL = Platform.select({
   // Extrair coordenadas para o mapa
   const coordinates = extractCoordinates(report.location);
 
+  // Determinar a URL da imagem (usando photo_url se disponível)
+  const imageUrl = report.photo_url || getFullImageUrl(report.photo);
+
   return (
-    <View style={[styles.container, { backgroundColor: isDark? colors.background : colors.accent }]}>
+    <View style={[styles.container, { backgroundColor: isDark ? colors.background : colors.accent }]}>
       <Stack.Screen
         options={{
           title: 'Detalhes do Report',
-          headerStyle: { backgroundColor: isDark? colors.background : colors.accent },
+          headerStyle: { backgroundColor: isDark ? colors.background : colors.accent },
           headerTintColor: colors.primary,
           headerShadowVisible: false,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color={colors.primary} style={{paddingHorizontal:16}}/>
+              <Ionicons name="arrow-back" size={24} color={colors.primary} style={{ paddingHorizontal: 16 }} />
             </TouchableOpacity>
           ),
         }}
@@ -262,12 +271,23 @@ const BACKEND_BASE_URL = Platform.select({
         {report.photo && (
           <View style={styles.section}>
             <View style={styles.photoContainer}>
-              <Image
-                source={getFullImageUrl(report.photo)}
-                style={styles.photo}
-                contentFit="cover"
-                onError={handleImageError}
-              />
+              {imageError ? (
+                <View style={[styles.imagePlaceholder, {backgroundColor: colors.divider}]}>
+                  <Ionicons name="image-outline" size={48} color={colors.textSecondary} />
+                  <Text style={{color: colors.textSecondary, marginTop: 10}}>
+                    Imagem indisponível
+                  </Text>
+                </View>
+              ) : (
+                <Image
+                  source={imageUrl}
+                  style={styles.photo}
+                  contentFit="cover"
+                  onError={handleImageError}
+                  transition={300}
+                  cachePolicy="memory-disk"
+                />
+              )}
             </View>
           </View>
         )}
@@ -276,7 +296,7 @@ const BACKEND_BASE_URL = Platform.select({
         <View style={styles.section}>
           <View style={[styles.statusContainer, { backgroundColor: statusStyle.bgColor }]}>
             {statusStyle.icon}
-            <Text style={[styles.statusText, { color: isDark? colors.accent : colors.textTertiary }]}>
+            <Text style={[styles.statusText, { color: isDark ? colors.accent : colors.textTertiary }]}>
               {report.status?.status?.toLowerCase() === 'em resolução'
                 ? 'Em Análise'
                 : capitalizeText(report.status?.status) || 'Desconhecido'}
@@ -311,7 +331,7 @@ const BACKEND_BASE_URL = Platform.select({
                   report.categories.map((category, index) => (
                     <View
                       key={index}
-                      style={[styles.categoryChip, { backgroundColor:isDark? colors.surface : colors.accent }]}
+                      style={[styles.categoryChip, { backgroundColor: isDark ? colors.surface : colors.accent }]}
                     >
                       <Text style={[styles.categoryText, { color: isDark ? colors.accent : colors.textPrimary }]}>
                         {capitalizeText(category.category)}
@@ -377,7 +397,7 @@ const BACKEND_BASE_URL = Platform.select({
             >
               <View style={styles.buttonContent}>
                 <Ionicons name="create-outline" size={20} color={colors.primary} />
-                <Text style={[styles.buttonText, { color: isDark? colors.textPrimary : colors.primary, marginLeft: 5 }]}>Editar</Text>
+                <Text style={[styles.buttonText, { color: isDark ? colors.textPrimary : colors.primary, marginLeft: 5 }]}>Editar</Text>
               </View>
             </TouchableOpacity>
 
@@ -391,8 +411,8 @@ const BACKEND_BASE_URL = Platform.select({
               disabled={actionInProgress}
             >
               <View style={styles.buttonContent}>
-                <Ionicons name="trash-outline" size={20} color={isDark? colors.surface : colors.textTertiary} />
-                <Text style={[styles.buttonText, { color: isDark? colors.surface : colors.textTertiary, marginLeft: 5 }]}>Eliminar</Text>
+                <Ionicons name="trash-outline" size={20} color={isDark ? colors.surface : colors.textTertiary} />
+                <Text style={[styles.buttonText, { color: isDark ? colors.surface : colors.textTertiary, marginLeft: 5 }]}>Eliminar</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -510,6 +530,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 16,
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
   },
   photo: {
     width: '100%',

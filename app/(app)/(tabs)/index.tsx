@@ -8,41 +8,48 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  Platform
+  Platform,
+  StyleSheet
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import styles from '@/assets/styles/(app)/(tabs)/index.styles';
+import baseStyles from '@/assets/styles/(app)/(tabs)/index.styles';
 import DashboardSummary from '@/components/DashboardSummary';
 import { UserReport } from '@/types/types';
 import { useRouter } from 'expo-router';
 
 
 const BACKEND_BASE_URL = Platform.select({
-  ios: 'http://localhost:8000',
-  android: 'https://reporta.up.railway.app/api/',
-  default: 'http://127.0.0.1:8000'
+  ios: 'https://reporta.up.railway.app',
+  android: 'https://reporta.up.railway.app',
+  default: 'https://reporta.up.railway.app'
 });
 
-  const getFullImageUrl = (relativePath: string | null) => {
-    if (!relativePath) return null;
+const getFullImageUrl = (relativePath: string | null, reportId?: number) => {
+  if (!relativePath) return null;
 
-    if (relativePath.startsWith('http')) {
-      return relativePath;
-    }
+  if (relativePath.startsWith('http')) {
+    return relativePath;
+  }
 
-    const cleanPath = relativePath.replace(/^\/+/, '');
-    const url = `${BACKEND_BASE_URL}/storage/${cleanPath}`;
-    return url;
-  };
+  // Extraia o nome do arquivo, ignorando qualquer caminho
+  const fileName = relativePath.split('/').pop() || relativePath;
+
+  // Use o novo endpoint de API dedicado a fotos
+  return `${BACKEND_BASE_URL}/api/photos/${fileName}`;
+};
 
 export default function HomeScreen() {
   const [reports, setReports] = useState<UserReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({});
   const { colors, isDark } = useTheme();
   const router = useRouter();
+
+  // Combinação de estilos base e locais
+  const styles = {...baseStyles, ...localStyles};
 
   // Função para capitalizar texto (primeira letra de cada palavra em maiúscula)
   const capitalizeText = (text: string | null | undefined): string => {
@@ -55,7 +62,6 @@ export default function HomeScreen() {
       .join(' ');
   };
 
-  // Função para capitalizar texto (primeira letra de cada palavra em maiúscula)
   useEffect(() => {
     getUserReports();
   }, []);
@@ -115,6 +121,8 @@ export default function HomeScreen() {
       const data = await response.json();
 
       setReports(data);
+      // Limpa os erros de imagem quando carrega novos reports
+      setImageErrors({});
     } catch (error) {
       console.error('Erro ao buscar reports:', error);
     } finally {
@@ -126,8 +134,12 @@ export default function HomeScreen() {
     await getUserReports();
   };
 
-  const handleImageError = (error: any, url: string) => {
-    console.error(`Erro ao carregar imagem de ${url}:`, error);
+  const handleImageError = (error: any, reportId: number, imageUrl: string) => {
+    console.error(`Erro ao carregar imagem do report ${reportId}:`, error);
+    console.log('URL com erro:', imageUrl);
+
+    // Marca essa imagem como com erro para mostrar um placeholder
+    setImageErrors(prev => ({ ...prev, [reportId]: true }));
   };
 
   // Função para navegar para a página de detalhes do report
@@ -149,9 +161,9 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 80 }}
       >
         {isLoading ? (
-          <View>
+          <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text>
+            <Text style={{color: colors.textPrimary, marginTop: 10}}>
               A carregar reports...
             </Text>
           </View>
@@ -171,6 +183,10 @@ export default function HomeScreen() {
                 <View style={styles.reportsList}>
                   {reports.map((report) => {
                     const statusStyle = getStatusStyle(report.status?.status);
+
+                    // Usa photo_url se disponível, senão constrói a URL
+                    const imageUrl = report.photo_url || getFullImageUrl(report.photo, report.id);
+                    const hasImageError = imageErrors[report.id];
 
                     return (
                       <TouchableOpacity
@@ -229,14 +245,25 @@ export default function HomeScreen() {
                             </View>
                           </View>
 
-                          {report.photo && (
+                          {(report.photo || report.photo_url) && (
                             <View style={styles.reportPhotoContainer}>
-                              <Image
-                                source={getFullImageUrl(report.photo)}
-                                style={styles.reportPhoto}
-                                onError={(error) => handleImageError(error, getFullImageUrl(report.photo) || '')}
-                                contentFit="cover"
-                              />
+                              {hasImageError ? (
+                                <View style={[styles.imagePlaceholder, {backgroundColor: colors.divider}]}>
+                                  <Ionicons name="image-outline" size={30} color={colors.textSecondary} />
+                                  <Text style={{color: colors.textSecondary, fontSize: 12, marginTop: 5}}>
+                                    Imagem indisponível
+                                  </Text>
+                                </View>
+                              ) : (
+                                <Image
+                                  source={imageUrl}
+                                  style={styles.reportPhoto}
+                                  onError={(error) => handleImageError(error, report.id, imageUrl || '')}
+                                  contentFit="cover"
+                                  transition={300}
+                                  cachePolicy="memory-disk"
+                                />
+                              )}
                             </View>
                           )}
                         </View>
@@ -260,3 +287,127 @@ export default function HomeScreen() {
     </SafeAreaProvider>
   );
 }
+
+// Estilos locais para complementar os existentes
+const localStyles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 0,
+    minHeight: 200,
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  // Adicionando estilos base caso o arquivo de estilos não os contenha
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  reportsSection: {
+    marginTop: 24,
+    paddingBottom: 16,
+  },
+  reportsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reportsSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  reportsList: {
+    gap: 16,
+  },
+  reportCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  reportCardContent: {
+    padding: 16,
+  },
+  reportCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  reportStatusIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  reportStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reportCardBody: {
+    marginBottom: 16,
+  },
+  reportInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reportInfoText: {
+    marginLeft: 8,
+    fontSize: 14,
+    flex: 1,
+  },
+  categoriesContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginLeft: 8,
+  },
+  categoryChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  reportPhotoContainer: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  reportPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  emptyReportsContainer: {
+    padding: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyReportsText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
+  }
+});

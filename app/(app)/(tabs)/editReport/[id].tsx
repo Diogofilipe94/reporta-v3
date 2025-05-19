@@ -7,16 +7,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import * as ImageManipulator from 'expo-image-manipulator';
 import MapView, { Marker } from 'react-native-maps';
 import { UserReport, Category } from '@/types/types';
 import { useTheme } from '@/contexts/ThemeContext';
 import CustomTabBar from '@/components/CustomTabBar';
+import { ImageManipulator } from 'expo-image-manipulator';
 
 const BACKEND_BASE_URL = Platform.select({
-  ios: 'http://localhost:8000',
-  android: 'https://reporta.up.railway.app/api/',
-  default: 'http://127.0.0.1:8000'
+  ios: 'https://reporta.up.railway.app',
+  android: 'https://reporta.up.railway.app',
+  default: 'https://reporta.up.railway.app'
 });
 
 export default function EditReportScreen() {
@@ -41,6 +41,7 @@ export default function EditReportScreen() {
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   // Função para capitalizar texto
   const capitalizeText = (text: string | null | undefined): string => {
@@ -52,17 +53,20 @@ export default function EditReportScreen() {
       .join(' ');
   };
 
-  // Obter URL completa da imagem
+  // Obter URL completa da imagem - Atualizada para usar o novo endpoint
   const getFullImageUrl = (relativePath: string | null) => {
     if (!relativePath) return null;
 
+    // Se já for uma URL completa, retorna como está
     if (relativePath.startsWith('http')) {
       return relativePath;
     }
 
-    const cleanPath = relativePath.replace(/^\/+/, '');
-    const url = `${BACKEND_BASE_URL}/storage/${cleanPath}`;
-    return url;
+    // Extrai apenas o nome do arquivo, ignorando qualquer caminho
+    const fileName = relativePath.split('/').pop() || relativePath;
+
+    // Usa o novo endpoint de API para fotos
+    return `${BACKEND_BASE_URL}/api/photos/${fileName}`;
   };
 
   // Função auxiliar para obter o endereço a partir das coordenadas
@@ -119,6 +123,12 @@ export default function EditReportScreen() {
     }
   };
 
+  // Tratar erros de carregamento de imagem
+  const handleImageError = (error: any) => {
+    console.error('Erro ao carregar imagem:', error);
+    setImageError(true);
+  };
+
   // Carregar categorias
   const fetchCategories = async () => {
     try {
@@ -158,6 +168,8 @@ export default function EditReportScreen() {
 
       try {
         setIsLoading(true);
+        setImageError(false); // Resetar erro de imagem quando carrega novos dados
+
         const token = await AsyncStorage.getItem('token');
 
         if (!token) {
@@ -192,7 +204,9 @@ export default function EditReportScreen() {
           setLocationCoords(coords);
         }
 
-        setPhotoURI(getFullImageUrl(data.photo) || '');
+        // Usar photo_url se disponível, senão construir URL
+        const imageUrl = data.photo_url || getFullImageUrl(data.photo);
+        setPhotoURI(imageUrl || '');
         setPhoto(data.photo || '');
 
         if (data.categories && data.categories.length > 0) {
@@ -261,7 +275,7 @@ export default function EditReportScreen() {
   const takePhoto = async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -276,11 +290,10 @@ export default function EditReportScreen() {
     }
   };
 
-  // Escolher imagem da galeria
   const pickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -297,53 +310,44 @@ export default function EditReportScreen() {
 
   // Processar imagem para upload
   const processImageForUpload = async (uri: string) => {
-    try {
-      const fileName = uri.split('/').pop() || '';
-      const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+  try {
+    const fileName = uri.split('/').pop() || '';
+    const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
 
-      if (!['jpg', 'jpeg', 'png'].includes(fileExt)) {
-        Alert.alert('Formato inválido', 'A imagem deve ser do tipo: jpeg, jpg, png');
-        return;
-      }
-
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-
-      if (fileInfo.exists) {
-        const fileSizeInMB = fileInfo.size / (1024 * 1024);
-        console.log(`Tamanho original da imagem: ${fileSizeInMB.toFixed(4)}MB`);
-
-        // Redimensiona
-        const resizedImage = await ImageManipulator.manipulateAsync(
-          uri,
-          [{ resize: { width: 600 } }],
-          {
-            compress: 1,
-            format: ImageManipulator.SaveFormat.JPEG
-          }
-        );
-
-        // Comprime
-        const compressedImage = await ImageManipulator.manipulateAsync(
-          resizedImage.uri,
-          [],
-          {
-            compress: 0.5,
-            format: ImageManipulator.SaveFormat.JPEG
-          }
-        );
-
-        const compressedInfo = await FileSystem.getInfoAsync(compressedImage.uri);
-        const compressedSizeMB = compressedInfo.exists ? compressedInfo.size / (1024 * 1024) : 0;
-        console.log(`Tamanho após compressão: ${compressedSizeMB.toFixed(4)}MB`);
-
-        const normalizedUri = Platform.OS === 'ios' ? compressedImage.uri.replace('file://', '') : compressedImage.uri;
-        setPhotoURI(normalizedUri);
-      }
-    } catch (error) {
-      console.error('Erro ao processar imagem:', error);
-      Alert.alert('Erro', 'Ocorreu um problema ao processar a imagem.');
+    if (!['jpg', 'jpeg', 'png'].includes(fileExt)) {
+      Alert.alert('Formato inválido', 'A imagem deve ser do tipo: jpeg, jpg, png');
+      return;
     }
-  };
+
+    const fileInfo = await FileSystem.getInfoAsync(uri);
+
+    if (fileInfo.exists) {
+      const fileSizeInMB = fileInfo.size / (1024 * 1024);
+      console.log(`Tamanho original da imagem: ${fileSizeInMB.toFixed(4)}MB`);
+
+      // Usa nova API: ImageManipulator.manipulate
+      const result = await ImageManipulator.manipulateAsync(
+        uri,
+        [],
+        {
+          compress: 0.7,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      const compressedInfo = await FileSystem.getInfoAsync(result.uri);
+      const compressedSizeMB = compressedInfo.exists ? compressedInfo.size / (1024 * 1024) : 0;
+      console.log(`Tamanho após compressão: ${compressedSizeMB.toFixed(4)}MB`);
+
+      const normalizedUri = Platform.OS === 'ios' ? result.uri.replace('file://', '') : result.uri;
+      setPhotoURI(normalizedUri);
+      setImageError(false);
+    }
+  } catch (error) {
+    console.error('Erro ao processar imagem:', error);
+    Alert.alert('Erro', 'Ocorreu um problema ao processar a imagem.');
+  }
+};
 
   // Salvar alterações do report
   const saveReport = async () => {
@@ -396,18 +400,18 @@ export default function EditReportScreen() {
         } as any);
       }
 
+      // Muitos frameworks usam este padrão para simular PUT com formData
+      formData.append('_method', 'PUT');
+
       // Enviar requisição para API
       const response = await fetch(`${BACKEND_BASE_URL}/api/reports/${id}`, {
-        method: 'PUT',
+        method: 'POST', // Usamos POST mas com _method=PUT para compatibilidade
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
         },
         body: formData
       });
-
-      // Muitos frameworks usam este padrão para simular PUT com formData
-      formData.append('_method', 'PUT');
 
       const responseText = await response.text();
       let data;
@@ -505,11 +509,23 @@ export default function EditReportScreen() {
           >
             {photoURI ? (
               <View style={styles.photoContainer}>
-                <Image
-                  source={{ uri: photoURI }}
-                  style={styles.photoPreview}
-                  contentFit="cover"
-                />
+                {imageError ? (
+                  <View style={[styles.imagePlaceholder, {backgroundColor: colors.divider}]}>
+                    <Ionicons name="image-outline" size={48} color={colors.textSecondary} />
+                    <Text style={{color: colors.textSecondary, marginTop: 10}}>
+                      Imagem indisponível
+                    </Text>
+                  </View>
+                ) : (
+                  <Image
+                    source={{ uri: photoURI }}
+                    style={styles.photoPreview}
+                    contentFit="cover"
+                    onError={handleImageError}
+                    transition={300}
+                    cachePolicy="memory-disk"
+                  />
+                )}
                 <TouchableOpacity
                   style={styles.changePhotoButton}
                   onPress={() => setPhotoModalVisible(true)}
@@ -904,6 +920,12 @@ const styles = StyleSheet.create({
   photoPlaceholderText: {
     marginTop: 10,
     fontSize: 16,
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   changePhotoButton: {
     position: 'absolute',
