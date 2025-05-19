@@ -214,7 +214,7 @@ export default function ReportDetailsScreen() {
       <View style={[styles.container, styles.centered, { backgroundColor: colors.accent }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textPrimary }]}>
-          Carregando detalhes...
+          A carregar detalhes...
         </Text>
       </View>
     );

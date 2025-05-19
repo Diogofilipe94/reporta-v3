@@ -32,6 +32,7 @@ export default function EditReportScreen() {
   const [photoURI, setPhotoURI] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [comment, setComment] = useState(''); // Novo estado para comentário
 
   // Estados de UI
   const [isLoading, setIsLoading] = useState(true);
@@ -213,6 +214,9 @@ export default function EditReportScreen() {
           setSelectedCategories((data.categories as Category[]).map((cat: Category) => cat.id));
         }
 
+        // Carregar comentário existente
+        setComment(data.comment || '');
+
       } catch (error) {
         console.error('Erro ao buscar detalhes do report:', error);
         setError('Não foi possível carregar os detalhes. Tente novamente.');
@@ -378,6 +382,8 @@ export default function EditReportScreen() {
       const locationString = `${locationText} - ${coordsString}`;
       formData.append('location', locationString);
 
+      // Adicionar comentário
+      formData.append('comment', comment);
 
       // Adicionar categorias
       selectedCategories.forEach(categoryId => {
@@ -450,7 +456,7 @@ export default function EditReportScreen() {
       <View style={[styles.container, styles.centered, { backgroundColor: colors.accent }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textPrimary }]}>
-          Carregando detalhes...
+          A carregar detalhes...
         </Text>
       </View>
     );
@@ -636,6 +642,27 @@ export default function EditReportScreen() {
           )}
         </View>
 
+        {/* Seção: Comentário - Nova seção */}
+        <View style={[styles.section, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Comentário</Text>
+          <TextInput
+            style={[
+              styles.commentInput,
+              {
+                backgroundColor: isDark ? colors.surface : "#f9f9f9",
+                borderColor: colors.divider,
+                color: colors.textPrimary
+              }
+            ]}
+            placeholder="Adicione um comentário sobre este report (opcional)"
+            placeholderTextColor={colors.textSecondary}
+            multiline={true}
+            numberOfLines={6}
+            textAlignVertical="top"
+            value={comment}
+            onChangeText={setComment}
+          />
+        </View>
 
         {/* Botões de ação */}
         <View style={styles.actionButtons}>
@@ -940,6 +967,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
+  },
+  // Novo estilo para o campo de comentário
+  commentInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 120,
+    textAlignVertical: 'top',
   },
   actionButtons: {
     flexDirection: 'row',

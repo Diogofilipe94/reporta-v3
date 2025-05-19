@@ -97,15 +97,12 @@ export class NotificationService {
 
   // Enviar o token para o servidor (implemente conforme sua API)
   static async sendPushTokenToServer(token: string): Promise<void> {
-    // Ajuste esta URL para o seu endpoint
-    const apiUrl = Platform.OS === 'android'
-      ? 'https://reporta.up.railway.app/api/push-token'
-      : 'https://reporta.up.railway.app/api/push-token';
+    const apiUrl = 'https://reporta.up.railway.app/api/notifications/token';
 
     try {
       const userToken = await AsyncStorage.getItem('token');
 
-      await fetch(apiUrl, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -118,7 +115,13 @@ export class NotificationService {
         })
       });
 
-      console.log('Token enviado para o servidor com sucesso');
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('Token enviado para o servidor com sucesso');
+      } else {
+        console.error('Erro ao enviar token para o servidor:', data.message);
+      }
     } catch (error) {
       console.error('Erro ao enviar token para o servidor:', error);
     }
