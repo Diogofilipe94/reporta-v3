@@ -30,8 +30,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const tokenCheckInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const apiUrl = Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000/api/user/reports' // Porta do seu Laravel
-    : 'http://localhost:8000/api/user/reports'; // URL para iOS
+    ? 'https://reporta.up.railway.app/api/user/reports' // Porta do seu Laravel
+    : 'https://reporta.up.railway.app/api/user/reports'; // URL para iOS
 
   // Função para verificar a validade do token
   const validateToken = async () => {

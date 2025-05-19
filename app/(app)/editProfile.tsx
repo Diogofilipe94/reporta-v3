@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/app/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomTabBar from '@/components/CustomTabBar';
+import { useTheme } from '@/contexts/ThemeContext';
 
 type UserData = {
   first_name: string;
@@ -45,8 +45,8 @@ export default function EditarPerfilScreen() {
   }, []);
 
   const apiUrl = Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000/api/user'
-    : 'http://localhost:8000/api/user';
+    ? 'https://reporta.up.railway.app/api/user'
+    : 'https://reporta.up.railway.app/api/user';
 
   const fetchUserData = async () => {
     try {

@@ -10,12 +10,12 @@ import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import MapView, { Marker } from 'react-native-maps';
 import { UserReport, Category } from '@/types/types';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import CustomTabBar from '@/components/CustomTabBar';
 
 const BACKEND_BASE_URL = Platform.select({
   ios: 'http://localhost:8000',
-  android: 'http://10.0.2.2:8000',
+  android: 'https://reporta.up.railway.app/api/',
   default: 'http://127.0.0.1:8000'
 });
 

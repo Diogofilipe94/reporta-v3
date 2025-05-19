@@ -1,20 +1,22 @@
-// app/(app)/(tabs)/definicoes.tsx
+// app/(app)/(tabs)/definicoes.tsx (versão atualizada)
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView, Switch, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomTabBar from '@/components/CustomTabBar';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import useNotification from '@/hooks/useNotification';
 
 export default function DefinicoesScreen() {
   const { signOut } = useAuth();
   const { colors, isDark, setColorScheme } = useTheme();
   const router = useRouter();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState('pt');
+
+  // Usar o hook de notificações em vez do estado local
+  const { isEnabled: notificationsEnabled, toggleNotifications, isLoading: notificationsLoading } = useNotification();
 
   // Lista de idiomas disponíveis
   const languages = [
@@ -27,12 +29,7 @@ export default function DefinicoesScreen() {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
-        const savedNotifications = await AsyncStorage.getItem('notifications');
         const savedLanguage = await AsyncStorage.getItem('language');
-
-        if (savedNotifications !== null) {
-          setNotificationsEnabled(savedNotifications === 'true');
-        }
 
         if (savedLanguage !== null) {
           setSelectedLanguage(savedLanguage);
@@ -51,12 +48,6 @@ export default function DefinicoesScreen() {
 
   const toggleTheme = () => {
     setColorScheme(isDark ? 'light' : 'dark');
-  };
-
-  const toggleNotifications = async () => {
-    const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    await AsyncStorage.setItem('notifications', newValue.toString());
   };
 
   const handleSelectLanguage = async (code: string) => {
@@ -189,13 +180,17 @@ export default function DefinicoesScreen() {
                   {notificationsEnabled ? 'Ativas' : 'Desativadas'}
                 </Text>
               </View>
-              <Switch
-                trackColor={{ false: '#767577', true: `${colors.primary}80` }}
-                thumbColor={notificationsEnabled ? colors.primary : '#f4f3f4'}
-                ios_backgroundColor="#3e3e3e"
-                onValueChange={toggleNotifications}
-                value={notificationsEnabled}
-              />
+              {notificationsLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Switch
+                  trackColor={{ false: '#767577', true: `${colors.primary}80` }}
+                  thumbColor={notificationsEnabled ? colors.primary : '#f4f3f4'}
+                  ios_backgroundColor="#3e3e3e"
+                  onValueChange={toggleNotifications}
+                  value={notificationsEnabled}
+                />
+              )}
             </View>
           </View>
 

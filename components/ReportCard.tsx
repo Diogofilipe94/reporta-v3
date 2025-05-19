@@ -40,7 +40,7 @@ export async function ReportCard() {
     try {
       const token = await AsyncStorage.getItem("token");
 
-      const response = await fetch('http://127.0.0.1:8000/api/user/reports', {
+      const response = await fetch('https://reporta.up.railway.app/api/user/reports', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

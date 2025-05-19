@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function RegisterScreen() {
@@ -161,7 +160,7 @@ export default function RegisterScreen() {
       setIsLoading(true);
 
       // Criar endereço
-      const addressResponse = await fetch('http://127.0.0.1:8000/api/address', {
+      const addressResponse = await fetch('https://reporta.up.railway.app/api/address', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -185,7 +184,7 @@ export default function RegisterScreen() {
       const addressId = addressData.id;
 
       // Criar utilizador
-      const userResponse = await fetch('http://127.0.0.1:8000/api/register', {
+      const userResponse = await fetch('https://reporta.up.railway.app/api/register', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

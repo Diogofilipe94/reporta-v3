@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Progress from 'react-native-progress';
 import { Category } from '@/types/types';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function NovoScreen() {
   // Get theme colors
@@ -38,7 +38,7 @@ export default function NovoScreen() {
 
   const BACKEND_BASE_URL = Platform.select({
     ios: 'http://localhost:8000',
-    android: 'http://10.0.2.2:8000',
+    android: 'https://reporta.up.railway.app/api/',
     default: 'http://127.0.0.1:8000'
   });
 

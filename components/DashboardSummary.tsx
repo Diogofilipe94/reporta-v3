@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import styles from '@/assets/styles/(app)/(tabs)/index.styles';
 import { UserReport } from '@/types/types';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 
 

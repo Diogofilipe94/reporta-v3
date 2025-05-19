@@ -1,4 +1,4 @@
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Tabs } from 'expo-router/tabs';
 
 export default function TabsLayout() {

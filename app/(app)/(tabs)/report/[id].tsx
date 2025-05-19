@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Platform, Alert, SafeAreaView, StatusBar, Modal } from 'react-native';
 import { Image } from 'expo-image';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,7 +17,7 @@ export default function ReportDetailsScreen() {
 
 const BACKEND_BASE_URL = Platform.select({
   ios: 'http://localhost:8000',
-  android: 'http://10.0.2.2:8000',
+  android: 'https://reporta.up.railway.app/api/',
   default: 'http://127.0.0.1:8000'
 });
   // Obter URL completa da imagem

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CustomTabBar from '@/components/CustomTabBar';
@@ -76,8 +76,8 @@ export default function EditarPasswordScreen() {
       }
 
       const apiUrl = Platform.OS === 'android'
-        ? 'http://10.0.2.2:8000/api/user'
-        : 'http://localhost:8000/api/user';
+        ? 'https://reporta.up.railway.app/api/user'
+        : 'https://reporta.up.railway.app/api/user';
 
       const response = await fetch(apiUrl, {
         method: 'PUT',

@@ -11,7 +11,7 @@ import {
   Platform
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import styles from '@/assets/styles/(app)/(tabs)/index.styles';
@@ -22,7 +22,7 @@ import { useRouter } from 'expo-router';
 
 const BACKEND_BASE_URL = Platform.select({
   ios: 'http://localhost:8000',
-  android: 'http://10.0.2.2:8000',
+  android: 'https://reporta.up.railway.app/api/',
   default: 'http://127.0.0.1:8000'
 });
 

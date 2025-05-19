@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 
@@ -20,7 +20,7 @@ export default function AuthLayout() {
         headerTitleStyle: { fontWeight: 'bold' },
       }}
     >
-      
+
       <Stack.Screen
         name="login"
         options={{

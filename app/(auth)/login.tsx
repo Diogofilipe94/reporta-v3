@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
@@ -15,8 +14,8 @@ export default function LoginScreen() {
   const { colors, isDark } = useTheme();
 
   const apiUrl = Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000/api/login'
-    : 'http://localhost:8000/api/login';
+    ? 'https://reporta.up.railway.app/api/login'
+    : 'https://reporta.up.railway.app/api/login';
 
   const router = useRouter();
   const { signIn } = useAuth();

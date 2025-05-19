@@ -3,9 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CustomTabBar from '@/components/CustomTabBar';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { router } from 'expo-router';
 
 type User = {
   first_name: string;
@@ -57,12 +58,12 @@ export default function ProfileScreen() {
   }, []);
 
   const apiUrl = Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000/api/user'
-    : 'http://localhost:8000/api/user';
+    ? 'https://reporta.up.railway.app/api/user'
+    : 'https://reporta.up.railway.app/api/user';
 
   const pointsApiUrl = Platform.OS === 'android'
-    ? 'http://10.0.2.2:8000/api/user/points'
-    : 'http://localhost:8000/api/user/points';
+    ? 'https://reporta.up.railway.app/api/user/points'
+    : 'https://reporta.up.railway.app/api/user/points';
 
   async function getUser() {
     try {
@@ -293,6 +294,10 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={[styles.editButton, { backgroundColor: colors.primary }]}
               activeOpacity={0.8}
+              onPress={() => {
+                // Navegar para a tela de edição de perfil
+                router.navigate('/(app)/editProfile');
+              }}
             >
               <Ionicons name="create-outline" size={18} color={isDark? colors.surface : colors.accent} />
               <Text style={[styles.editButtonText,{color: isDark? colors.surface : colors.accent}]}>Editar dados pessoais</Text>

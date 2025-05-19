@@ -3,8 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { router, usePathname } from 'expo-router';
 import { useEffect } from 'react';
-import { useTabContext } from '../app/contexts/TabContext';
-import { useTheme } from '@/app/contexts/ThemeContext';
+import { useTabContext } from '../contexts/TabContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import Fontisto from '@expo/vector-icons/Fontisto';
 
 
