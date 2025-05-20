@@ -79,7 +79,7 @@ export default function RootLayout() {
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('Resposta da notificação:', response);
       // Aqui você pode adicionar lógica de navegação com base na notificação
-      // Por exemplo, redirecionar o usuário para uma tela específica
+      // Por exemplo, redirecionar o utilizador para uma tela específica
     });
 
     // Limpar listeners ao desmontar

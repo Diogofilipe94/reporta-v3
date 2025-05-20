@@ -84,7 +84,7 @@ export default function EditarPerfilScreen() {
         });
       }
     } catch (error) {
-      console.error('Erro ao buscar dados do usuário:', error);
+      console.error('Erro ao buscar dados do utilizador:', error);
       Alert.alert('Erro', 'Não foi possível carregar os dados do perfil.');
     } finally {
       setIsLoading(false);

@@ -133,7 +133,7 @@ export default function ProfileScreen() {
     }
   };
 
-  // Função para determinar o nível do usuário
+  // Função para determinar o nível do utilizador
   const getUserLevel = () => {
     const points = userPoints.points;
     if (points < 50) return 'Iniciante';
