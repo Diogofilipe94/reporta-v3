@@ -762,9 +762,8 @@ export default function NovoScreen() {
             <View style={[
               styles.navigationButtons,
               {
-                backgroundColor: isDark ? colors.surface : "#f9f9f9",
                 position: 'absolute',
-                bottom: isKeyboardVisible ? 0 : 80, // Acima da TabBar quando ela está visível
+                bottom: isKeyboardVisible ? 0 : 80,
                 left: 0,
                 right: 0,
                 zIndex: 10,
@@ -1002,8 +1001,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 15,
     justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
   },
   prevButton: {
     borderWidth: 1,
@@ -1057,7 +1054,6 @@ const styles = StyleSheet.create({
   miniMapContainer: {
     width: '100%',
     height: 180,
-    marginTop: 15,
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
@@ -1122,7 +1118,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  // Estilos novos para o campo de comentário
   commentLabel: {
     fontSize: 16,
     fontWeight: '500',

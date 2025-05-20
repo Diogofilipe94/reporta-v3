@@ -79,7 +79,7 @@ export default function AppLayout() {
           drawerIcon: ({ size, color }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
-          
+
         }}
       />
       <Drawer.Screen

@@ -168,6 +168,4 @@ const styles = StyleSheet.create({
   iosSafeArea: {
     height: 15,
   },
-
-
 });

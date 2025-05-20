@@ -66,7 +66,7 @@ export default function EditReportScreen() {
   // Efeito para detectar quando o teclado é mostrado ou ocultado
   useEffect(() => {
     // Para iOS usamos keyboardWillShow para antecipar a ocultação
-    // Para Android continuamos a usar keyboardDidShow
+    // Para Android continuamos usando keyboardDidShow
     const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
@@ -263,7 +263,7 @@ export default function EditReportScreen() {
         const data = await response.json();
         setReport(data);
 
-        // A popular os estados com dados do report
+        // Populando os estados com dados do report
         setLocationText(data.location.split('-')[0]?.trim() || '');
 
         const coords = extractCoordinates(data.location);
@@ -419,7 +419,7 @@ export default function EditReportScreen() {
   }
 };
 
-  // Guardar alterações do report
+  // Salvar alterações do report
   const saveReport = async () => {
     try {
       // Verificar se há pelo menos uma categoria selecionada
@@ -428,7 +428,7 @@ export default function EditReportScreen() {
         return;
       }
 
-      // Fechar o teclado antes de guardar
+      // Fechar o teclado antes de salvar
       Keyboard.dismiss();
 
       setIsSaving(true);
@@ -472,8 +472,13 @@ export default function EditReportScreen() {
         formData.append('category_id[]', categoryId.toString());
       });
 
-      // Se houver uma nova foto (URI local, não URL), adicionar ao formData
-      if (photoURI && !photoURI.includes(BACKEND_BASE_URL)) {
+      // Verificar se o usuário selecionou uma nova foto (URI local, não URL)
+      const isNewPhotoSelected = photoURI &&
+                               !photoURI.includes(BACKEND_BASE_URL) &&
+                               !photoURI.includes('http');
+
+      if (isNewPhotoSelected) {
+        // Usuário selecionou uma nova foto
         const fileName = photoURI.split('/').pop() || 'photo.jpg';
         const fileType = fileName.endsWith('.png')
           ? 'image/png'
@@ -481,18 +486,47 @@ export default function EditReportScreen() {
             ? 'image/jpeg'
             : 'image/jpg';
 
-        formData.append('photo', {
-          uri: Platform.OS === 'ios' ? photoURI.replace('file://', '') : photoURI,
-          name: fileName,
-          type: fileType
-        } as any);
-      } else if (photo) {
-        // Se o usuário não selecionou uma nova foto, manter a existente
-        formData.append('current_photo', photo);
+        // No Android, garantimos que a URI está no formato correto
+        const fileUri = Platform.OS === 'ios'
+          ? photoURI.replace('file://', '')
+          : photoURI.startsWith('file://')
+            ? photoURI
+            : `file://${photoURI}`;
+
+        try {
+          // Verifica se o arquivo existe
+          const fileInfo = await FileSystem.getInfoAsync(
+            Platform.OS === 'ios' ? photoURI : fileUri.replace('file://', '')
+          );
+
+          if (!fileInfo.exists) {
+            throw new Error('Arquivo de imagem não encontrado');
+          }
+
+          // Adiciona a foto ao FormData apenas se o arquivo existir
+          formData.append('photo', {
+            uri: fileUri,
+            name: fileName,
+            type: fileType
+          } as any);
+
+          console.log(`Enviando nova foto: ${fileName}, tipo: ${fileType}`);
+        } catch (error) {
+          console.error('Erro ao verificar arquivo de imagem:', error);
+          Alert.alert('Erro', 'Não foi possível processar a imagem selecionada. Por favor, tente novamente.');
+          setIsSaving(false);
+          return;
+        }
+      } else {
+        console.log('Mantendo a foto existente, não enviando nova imagem');
+        // Se o usuário não está enviando uma nova foto, não incluímos nenhum campo de foto
+        // O backend manterá a foto existente por padrão
       }
 
       // Muitos frameworks usam este padrão para simular PUT com formData
       formData.append('_method', 'PUT');
+
+      console.log('Enviando dados para API:', formData);
 
       // Enviar requisição para API
       const response = await fetch(`${BACKEND_BASE_URL}/api/reports/${id}`, {
@@ -500,11 +534,14 @@ export default function EditReportScreen() {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
         },
         body: formData
       });
 
       const responseText = await response.text();
+      console.log('Resposta do servidor:', responseText);
+
       let data;
 
       try {
