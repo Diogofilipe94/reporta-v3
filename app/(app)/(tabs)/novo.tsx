@@ -10,7 +10,6 @@ import {
   Image,
   ActivityIndicator,
   SafeAreaView,
-  StatusBar,
   Platform,
   TextInput,
   ScrollView,
@@ -37,7 +36,7 @@ export default function NovoScreen() {
 
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4; // Aumentado para 4 passos
+  const totalSteps = 4;
 
   const [locationText, setLocationText] = useState('');
   const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -225,6 +224,13 @@ export default function NovoScreen() {
 
   const takePhoto = async () => {
     try {
+      // Solicitar permissão da câmera primeiro
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'A permissão para aceder à camera é necessária para esta funcionalidade.');
+        return;
+      }
+      
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -243,6 +249,13 @@ export default function NovoScreen() {
 
   const pickImage = async () => {
     try {
+      // Solicitar permissão da galeria primeiro
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'A permissão da galeria é necessária para esta funcionalidade.');
+        return;
+      }
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,

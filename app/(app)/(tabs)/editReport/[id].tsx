@@ -344,6 +344,13 @@ export default function EditReportScreen() {
   // Tirar foto
   const takePhoto = async () => {
     try {
+      // Solicitar permissão da câmera primeiro
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'A permissão da camera é necessária para esta funcionalidade.');
+        return;
+      }
+      
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -362,6 +369,13 @@ export default function EditReportScreen() {
 
   const pickImage = async () => {
     try {
+      // Solicitar permissão da galeria primeiro
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'A permissão para aceder à camera é necessária para esta funcionalidade.');
+        return;
+      }
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,

@@ -7,17 +7,20 @@
     "icon": "./assets/images/logoReporta.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "pt.diogotavares.reporta",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para registrar a posição dos reports",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Precisamos da sua localização para registrar a posição dos reports",
-        "NSCameraUsageDescription": "Este app usa a câmera para capturar fotos para os seus reports",
-        "NSPhotoLibraryUsageDescription": "Este app acessa sua galeria para selecionar fotos para os reports",
-        "NSUserNotificationsUsageDescription": "Precisamos enviar notificações sobre atualizações nos seus reports"
+        "NSLocationWhenInUseUsageDescription": "O Repporta precisa da sua localização para registar a localização do seu reports",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "O Reporta precisa da sua localização para registar a localização do seu reports",
+        "NSCameraUsageDescription": "O Reporta usa a camera para capturar fotos para os seus reports",
+        "NSPhotoLibraryUsageDescription": "O Reporta acede à sua galeria para selecionar fotos para os reports",
+        "NSUserNotificationsUsageDescription": "O Reporta usa notificações para alertar sobre atualizações aos seus reports"
       }
     },
     "android": {
@@ -31,7 +34,8 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "package": "pt.diogotavares.reporta"
     },
     "plugins": [
       "expo-router",
@@ -47,8 +51,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Este app acessa sua galeria para selecionar fotos para os reports",
-          "cameraPermission": "Este app usa a câmera para capturar fotos para os seus reports"
+          "photosPermission": "O Reporta acede à sua galeria para selecionar fotos para os reports",
+          "cameraPermission": "O Reporta usa a camera para capturar fotos para os seus reports"
         }
       ],
       "expo-notifications",

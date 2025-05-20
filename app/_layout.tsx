@@ -36,7 +36,7 @@ function StatusBarComponent() {
       networkActivityIndicatorVisible={false}
       hidden={false}
       translucent={false}
-      backgroundColor={isDark? colors.primary : colors.primary}
+      backgroundColor={isDark? colors.background : colors.primary}
     />
   );
 }
