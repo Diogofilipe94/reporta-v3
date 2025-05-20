@@ -1,22 +1,34 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function RegisterScreen() {
+export default function RegisterScreen(): React.ReactElement {
   // Estados para campos do formulário
-  const [first_name, setFirstName] = useState('');
-  const [last_name, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [telephone, setTelephone] = useState('');
-  const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
-  const [number, setNumber] = useState('');
-  const [cp, setCp] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [first_name, setFirstName] = useState<string>('');
+  const [last_name, setLastName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [passwordVisible, setPasswordVisible] = useState<boolean>(false);
+  const [telephone, setTelephone] = useState<string>('');
+  const [street, setStreet] = useState<string>('');
+  const [city, setCity] = useState<string>('');
+  const [number, setNumber] = useState<string>('');
+  const [cp, setCp] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [keyboardVisible, setKeyboardVisible] = useState<boolean>(false);
 
   // Estados para erros de cada campo
   const [errors, setErrors] = useState({
@@ -32,29 +44,50 @@ export default function RegisterScreen() {
     general: ''
   });
 
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const router = useRouter();
 
+  // Adicionar ouvintes do teclado para mostrar/esconder o botão de fechar teclado
+  React.useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setKeyboardVisible(true);
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
   // Função para validar email usando regex
-  const isValidEmail = (email: string) => {
+  const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
   // Função para validar código postal português (formato 4 dígitos-3 dígitos)
-  const isValidPostalCode = (cp: string) => {
+  const isValidPostalCode = (cp: string): boolean => {
     const cpRegex = /^[0-9]{4}-[0-9]{3}$/;
     return cpRegex.test(cp);
   };
 
   // Função para validar telefone português (9 dígitos)
-  const isValidPhone = (phone: string) => {
+  const isValidPhone = (phone: string): boolean => {
     const phoneRegex = /^[0-9]{9}$/;
     return phoneRegex.test(phone);
   };
 
   // Função para validar todo o formulário
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     let isValid = true;
     const newErrors = { ...errors };
 
@@ -146,13 +179,15 @@ export default function RegisterScreen() {
     return isValid;
   };
 
-  async function handleRegister() {
+  async function handleRegister(): Promise<void> {
     // Limpar erro geral
     setErrors(prev => ({ ...prev, general: '' }));
 
+    // Fechar o teclado
+    Keyboard.dismiss();
+
     // Validar formulário antes de enviar
     if (!validateForm()) {
-      // Rolar para o topo para mostrar erros
       return;
     }
 
@@ -234,13 +269,22 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    // KeyboardAvoidingView como componente principal, seguindo a documentação
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+      style={[styles.container, { backgroundColor: colors.background }]}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+    >
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Registo</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary, opacity: 0.8 }]}>Criar uma nova conta</Text>
       </View>
 
-      <ScrollView style={[styles.form, { backgroundColor: colors.surface }]}>
+      <ScrollView 
+        style={[styles.form, { backgroundColor: colors.surface }]}
+        contentContainerStyle={{ paddingBottom: 150 }} // Espaço extra para garantir que os campos inferiores sejam visíveis
+        keyboardShouldPersistTaps="handled"
+      >
         {errors.general ? (
           <View style={styles.generalErrorContainer}>
             <Text style={[styles.generalErrorText, { color: colors.error, backgroundColor: colors.error }]}>
@@ -272,6 +316,7 @@ export default function RegisterScreen() {
                   setErrors(prev => ({ ...prev, first_name: '' }));
                 }
               }}
+              returnKeyType="next"
             />
             <ErrorMessage error={errors.first_name} />
           </View>
@@ -296,6 +341,7 @@ export default function RegisterScreen() {
                   setErrors(prev => ({ ...prev, last_name: '' }));
                 }
               }}
+              returnKeyType="next"
             />
             <ErrorMessage error={errors.last_name} />
           </View>
@@ -323,6 +369,7 @@ export default function RegisterScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              returnKeyType="next"
             />
             <ErrorMessage error={errors.email} />
           </View>
@@ -352,6 +399,7 @@ export default function RegisterScreen() {
                   }
                 }}
                 secureTextEntry={!passwordVisible}
+                returnKeyType="next"
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
@@ -389,11 +437,11 @@ export default function RegisterScreen() {
               }}
               keyboardType="phone-pad"
               maxLength={9}
+              returnKeyType="next"
             />
             <ErrorMessage error={errors.telephone} />
           </View>
         </View>
-
 
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Morada</Text>
@@ -418,6 +466,7 @@ export default function RegisterScreen() {
                   setErrors(prev => ({ ...prev, street: '' }));
                 }
               }}
+              returnKeyType="next"
             />
             <ErrorMessage error={errors.street} />
           </View>
@@ -443,6 +492,7 @@ export default function RegisterScreen() {
                 }
               }}
               keyboardType="numeric"
+              returnKeyType="next"
             />
             <ErrorMessage error={errors.number} />
           </View>
@@ -467,6 +517,7 @@ export default function RegisterScreen() {
                   setErrors(prev => ({ ...prev, cp: '' }));
                 }
               }}
+              returnKeyType="next"
             />
             <ErrorMessage error={errors.cp} />
           </View>
@@ -491,6 +542,8 @@ export default function RegisterScreen() {
                   setErrors(prev => ({ ...prev, city: '' }));
                 }
               }}
+              returnKeyType="done"
+              onSubmitEditing={handleRegister}
             />
             <ErrorMessage error={errors.city} />
           </View>
@@ -515,7 +568,17 @@ export default function RegisterScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+      
+      {/* Botão para fechar o teclado (visível apenas quando o teclado está aberto) */}
+      {keyboardVisible && (
+        <TouchableOpacity
+          style={[styles.keyboardDismissButton, { backgroundColor: colors.primary }]}
+          onPress={Keyboard.dismiss}
+        >
+          <Ionicons name="chevron-down" size={24} color="white" />
+        </TouchableOpacity>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -576,7 +639,6 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: 10,
   },
-
   button: {
     borderRadius: 10,
     padding: 15,
@@ -607,5 +669,21 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
     textAlign: 'center',
+  },
+  keyboardDismissButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    zIndex: 999,
   }
 });
