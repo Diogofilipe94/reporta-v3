@@ -52,7 +52,6 @@ export default function NovoScreen() {
   const [showLocationOptions, setShowLocationOptions] = useState(false);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const BACKEND_BASE_URL = Platform.select({
     ios: 'https://reporta.up.railway.app/api',
@@ -344,7 +343,6 @@ export default function NovoScreen() {
       Keyboard.dismiss();
 
       setIsLoading(true);
-      setUploadProgress(0.1); // Start progress
 
       const token = await AsyncStorage.getItem('token');
 
@@ -393,18 +391,6 @@ export default function NovoScreen() {
         photo: `File: ${fileName}, Type: ${fileType}, URI: ${photoURI.substring(0, 50)}...`
       });
 
-      // Simular progresso de upload já que fetch não tem evento onprogress nativo
-      setUploadProgress(0.3);
-
-      // Usar um intervalo para simular o progresso do upload
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          // Incrementar gradualmente até 0.9 (90%)
-          const newProgress = prev + 0.05;
-          return newProgress < 0.9 ? newProgress : 0.9;
-        });
-      }, 300);
-
       try {
         // Fazer a requisição usando fetch
         const response = await fetch(`${BACKEND_BASE_URL}/reports`, {
@@ -415,12 +401,6 @@ export default function NovoScreen() {
           },
           body: formData
         });
-
-        // Limpar o intervalo de progresso
-        clearInterval(progressInterval);
-
-        // Definir progresso como 100%
-        setUploadProgress(1.0);
 
         // Verificar se a resposta foi bem-sucedida
         if (response.ok) {
@@ -457,18 +437,15 @@ export default function NovoScreen() {
           Alert.alert('Error', errorMessage);
         }
       } catch (error) {
-        clearInterval(progressInterval);
         console.error('Request error:', error);
         Alert.alert('Connection Error', 'Could not connect to server.');
       } finally {
         setIsLoading(false);
-        setUploadProgress(0);
       }
     } catch (error) {
       console.error('General error:', error);
       Alert.alert('Error', 'An error occurred while creating the report');
       setIsLoading(false);
-      setUploadProgress(0);
     }
   }
 
@@ -505,42 +482,22 @@ export default function NovoScreen() {
 
   const renderProgressIndicator = () => {
     // Calculate progress based on current step
-    const progress = (currentStep) / totalSteps;
+    const progress = currentStep / totalSteps;
 
     return (
-      <View style={currentStep === 4 ? styles.progressContainerSmall : styles.progressContainer}>
-        {isLoading && currentStep === totalSteps ? (
-          <View style={styles.uploadProgressContainer}>
-            <Progress.Circle
-              size={currentStep === 4 ? 80 : 120}
-              progress={uploadProgress}
-              thickness={8}
-              color={colors.primary}
-              unfilledColor={isDark ? colors.divider : "#e0e0e0"}
-              borderWidth={4}
-              borderColor={colors.secondary}
-              showsText={true}
-              formatText={() => `${Math.round(uploadProgress * 100)}%`}
-              style={{ marginBottom: 10 }}
-            />
-            <Text style={[styles.uploadProgressText, {color: colors.textPrimary}]}>
-              Enviando dados...
-            </Text>
-          </View>
-        ) : (
-          <Progress.Circle
-            size={currentStep === 4 ? 80 : 120}
-            progress={progress}
-            thickness={8}
-            color={colors.primary}
-            unfilledColor={isDark ? colors.divider : "#e0e0e0"}
-            borderWidth={4}
-            borderColor={colors.secondary}
-            showsText={true}
-            formatText={() => `${currentStep}/${totalSteps}`}
-            style={{ marginBottom: 10 }}
-          />
-        )}
+      <View style={styles.progressContainerSmall}>
+        <Progress.Circle
+          size={80}
+          progress={progress}
+          thickness={8}
+          color={colors.primary}
+          unfilledColor={isDark ? colors.divider : "#e0e0e0"}
+          borderWidth={4}
+          borderColor={colors.secondary}
+          showsText={true}
+          formatText={() => `${currentStep}/${totalSteps}`}
+          style={{ marginBottom: 10 }}
+        />
       </View>
     );
   };
@@ -783,9 +740,7 @@ export default function NovoScreen() {
               keyboardDismissMode="on-drag"
             >
               {/* Progress indicator */}
-              <View style={currentStep === 4 ? styles.progressContainerSmall : styles.progressContainer}>
-                {renderProgressIndicator()}
-              </View>
+              {renderProgressIndicator()}
 
               {/* Step Title */}
               <View style={styles.stepTitleContainer}>
@@ -1004,19 +959,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  progressContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 20,
-    zIndex: 1,
-  },
   progressContainerSmall: {
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 10,
     paddingBottom: 0,
     zIndex: 1,
-    height: 100, // Altura fixa menor para a etapa de comentário
+    height: 100,
   },
   uploadProgressContainer: {
     justifyContent: 'center',

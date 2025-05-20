@@ -137,7 +137,8 @@ export default function ProfileScreen() {
   const getUserLevel = () => {
     const points = userPoints.points;
     if (points < 50) return 'Iniciante';
-    if (points < 250) return 'Intermediário';
+    if (points < 250) return 'Intermédio';
+    if (points < 500) return 'Avançado';
     return 'Especialista';
   };
 
@@ -291,18 +292,6 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.buttonsContainer}>
-            <TouchableOpacity
-              style={[styles.editButton, { backgroundColor: colors.primary }]}
-              activeOpacity={0.8}
-              onPress={() => {
-                // Navegar para a tela de edição de perfil
-                router.navigate('/(app)/editProfile');
-              }}
-            >
-              <Ionicons name="create-outline" size={18} color={isDark? colors.surface : colors.accent} />
-              <Text style={[styles.editButtonText,{color: isDark? colors.surface : colors.accent}]}>Editar dados pessoais</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={[
                 styles.logoutButton,

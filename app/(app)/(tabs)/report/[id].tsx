@@ -76,7 +76,7 @@ export default function ReportDetailsScreen() {
     }
   };
 
-  const isResolved = report?.status?.status?.toLowerCase() === 'resolvido';
+  const isResolved = report?.status?.status?.toLowerCase() === 'resolvido' || report?.status?.status?.toLowerCase() === 'em resolução';
 
   // Função para capitalizar texto (primeira letra de cada palavra em maiúscula)
   const capitalizeText = (text: string | null | undefined): string => {
@@ -438,7 +438,7 @@ export default function ReportDetailsScreen() {
         ) : (
           <View style={[{ backgroundColor: colors.surface, marginHorizontal: 16, marginTop: 20, padding: 12, borderRadius: 8 }]}>
             <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
-              Este report já foi resolvido e não pode ser modificado.
+              Este report já não pode ser editado ou eliminado.
             </Text>
           </View>
         )}
