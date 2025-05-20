@@ -171,7 +171,7 @@ export default function HomeScreen() {
           <>
             <DashboardSummary reports={reports} colors={colors} />
 
-            <View style={[styles.reportsSection, {backgroundColor: isDark? colors.background : colors.accent}]}>
+            <View style={[styles.reportsSection, {backgroundColor: isDark? colors.background : colors.surface}]}>
               <View style={styles.reportsSectionHeader}>
                 <Ionicons name="albums" size={24} color={colors.primary} style={{marginHorizontal:4}} />
                 <Text style={[styles.reportsSectionTitle, { color: colors.textPrimary }]}>
@@ -209,29 +209,35 @@ export default function HomeScreen() {
 
                           <View style={styles.reportCardBody}>
                             <View style={styles.reportInfoRow}>
-                              <Ionicons name="location-outline" size={18} color={colors.primary} />
-                              <Text style={[styles.reportInfoText, { color: colors.textPrimary }]}>
+                              <View  style={styles.icon}>
+                                <Ionicons name="location-outline" size={18} color={colors.primary}/>
+                              </View>
+                              <Text style={[styles.reportInfoText, { color: colors.textSecondary }]}>
                                 {report.location.split('-')[0]?.trim() || 'Local não especificado'}
                               </Text>
                             </View>
 
                             <View style={styles.reportInfoRow}>
-                              <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+                              <View  style={styles.icon}>
+                                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+                              </View>
                               <Text style={[styles.reportInfoText, { color: colors.textSecondary }]}>
                                 {new Date(report.date).toLocaleDateString()}
                               </Text>
                             </View>
 
                             <View style={styles.reportInfoRow}>
-                              <Ionicons name="pricetags-outline" size={18} color={colors.primary} />
+                              <View  style={styles.icon}>
+                                <Ionicons name="pricetags-outline" size={18} color={colors.primary} />
+                              </View>
                               <View style={styles.categoriesContainer}>
                                 {report.categories && report.categories.length > 0 ? (
                                   report.categories.map((category, index) => (
                                     <View
                                       key={index}
-                                      style={[styles.categoryChip, { backgroundColor: isDark ? colors.surface : colors.accent }]}
+                                      style={[styles.categoryChip, { backgroundColor: isDark ? colors.surface : colors.accent, borderColor: isDark ? colors.primary : colors.textSecondary }]}
                                     >
-                                      <Text style={[styles.categoryText, { color: colors.primary }]}>
+                                      <Text style={[styles.categoryText, { color: colors.textSecondary }]}>
                                         {capitalizeText(category.category)}
                                       </Text>
                                     </View>
@@ -310,7 +316,6 @@ const localStyles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
   },
-  // Adicionando estilos base caso o arquivo de estilos não os contenha
   container: {
     flex: 1,
     paddingHorizontal: 16,
@@ -333,7 +338,7 @@ const localStyles = StyleSheet.create({
   },
   reportCard: {
     borderRadius: 12,
-    overflow: 'hidden',
+    //overflow: 'hidden',
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
@@ -372,10 +377,18 @@ const localStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  icon: {
+    width: 24,
+    height: 24,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: 4,
+  },
   reportInfoText: {
-    marginLeft: 8,
     fontSize: 14,
     flex: 1,
+    marginLeft: 8,
   },
   categoriesContainer: {
     flex: 1,
@@ -390,11 +403,11 @@ const localStyles = StyleSheet.create({
     marginRight: 6,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   categoryText: {
     fontSize: 12,
     fontWeight: '500',
+
   },
   reportPhotoContainer: {
     width: '100%',
