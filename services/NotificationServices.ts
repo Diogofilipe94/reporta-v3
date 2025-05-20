@@ -25,7 +25,6 @@ export interface PushNotificationState {
 const PUSH_NOTIFICATION_ENABLED_KEY = 'push_notification_enabled';
 
 export class NotificationService {
-  // Registrar para receber notificações push
   static async registerForPushNotifications(): Promise<string | undefined> {
     // Verificar se estamos em um dispositivo físico (não funcionará em simuladores/emuladores)
     if (!Device.isDevice) {
@@ -71,7 +70,6 @@ export class NotificationService {
     return token;
   }
 
-  // Verifica se as notificações estão habilitadas
   static async areNotificationsEnabled(): Promise<boolean> {
     try {
       const enabled = await AsyncStorage.getItem(PUSH_NOTIFICATION_ENABLED_KEY);
@@ -82,20 +80,37 @@ export class NotificationService {
     }
   }
 
-  // Habilitar ou desabilitar notificações
   static async setNotificationsEnabled(enabled: boolean): Promise<void> {
     try {
       if (enabled) {
-        await this.registerForPushNotifications();
+        // Registrar para notificações e enviar token para o servidor
+        const token = await this.registerForPushNotifications();
+        if (token) {
+          await this.sendPushTokenToServer(token);
+        }
       } else {
+        // Preservar o estado das notificações como desativado
         await AsyncStorage.setItem(PUSH_NOTIFICATION_ENABLED_KEY, 'false');
+
+        // Obter o token atual e desregistrá-lo no servidor (sem removê-lo do dispositivo)
+        try {
+          const { data: token } = await Notifications.getExpoPushTokenAsync();
+          if (token) {
+            await this.unregisterPushTokenFromServer(token);
+          }
+        } catch (tokenError) {
+          console.error('Erro ao obter token para desativação:', tokenError);
+        }
       }
-    } catch (error) {
-      console.error('Erro ao definir status das notificações:', error);
-    }
+
+    // Salvar o estado local
+    await AsyncStorage.setItem(PUSH_NOTIFICATION_ENABLED_KEY, enabled ? 'true' : 'false');
+  } catch (error) {
+    console.error('Erro ao definir status das notificações:', error);
+    throw error; // Re-lançar o erro para tratamento no useNotification
+  }
   }
 
-  // Enviar o token para o servidor (implemente conforme sua API)
   static async sendPushTokenToServer(token: string): Promise<void> {
     const apiUrl = 'https://reporta.up.railway.app/api/notifications/token';
 
@@ -127,7 +142,40 @@ export class NotificationService {
     }
   }
 
-  // Configurar os listeners para notificações recebidas e clicadas
+  static async unregisterPushTokenFromServer(token: string): Promise<boolean> {
+    const apiUrl = 'https://reporta.up.railway.app/api/notifications/token/unregister';
+
+    try {
+      const userToken = await AsyncStorage.getItem('token');
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({
+          token: token,
+          platform: Platform.OS
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('Token desativado no servidor com sucesso');
+        return true;
+      } else {
+        console.error('Erro ao desativar token no servidor:', data.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('Erro ao desativar token no servidor:', error);
+      return false;
+    }
+  }
+
   static setupNotificationListeners(
     onNotificationReceived?: (notification: Notifications.Notification) => void,
     onNotificationResponse?: (response: Notifications.NotificationResponse) => void

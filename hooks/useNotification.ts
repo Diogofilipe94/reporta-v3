@@ -54,7 +54,9 @@ export default function useNotification() {
   // Função para alternar o status das notificações
   const toggleNotifications = async () => {
     try {
+      setIsLoading(true);
       const newValue = !isEnabled;
+
       await NotificationService.setNotificationsEnabled(newValue);
       setIsEnabled(newValue);
 
@@ -63,9 +65,17 @@ export default function useNotification() {
         if (token) {
           setPushNotificationState(prev => ({ ...prev, expoPushToken: token }));
         }
+      } else {
+        // Desativar o token localmente também
+        setPushNotificationState(prev => ({ ...prev, expoPushToken: undefined }));
       }
     } catch (error) {
       console.error('Erro ao alternar notificações:', error);
+      // Voltar ao estado anterior em caso de erro
+      setIsEnabled(prev => prev);
+      // Opcional: adicione feedback ao usuário aqui (toast, alert, etc.)
+    } finally {
+      setIsLoading(false);
     }
   };
 

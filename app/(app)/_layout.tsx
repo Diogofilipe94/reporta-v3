@@ -61,6 +61,7 @@ export default function AppLayout() {
           width: 320,
         },
         headerRight: () => null,
+
       }}
     >
       <Drawer.Screen
@@ -78,6 +79,7 @@ export default function AppLayout() {
           drawerIcon: ({ size, color }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
+          
         }}
       />
       <Drawer.Screen

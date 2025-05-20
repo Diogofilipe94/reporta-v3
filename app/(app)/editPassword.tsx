@@ -1,6 +1,20 @@
 // app/(app)/(tabs)/editar-password.tsx
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Platform } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Animated
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { router } from 'expo-router';
@@ -10,6 +24,10 @@ import CustomTabBar from '@/components/CustomTabBar';
 export default function EditarPasswordScreen() {
   const { colors, isDark } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const tabbarOpacity = useRef(new Animated.Value(1)).current;
+
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   // Estado para os campos de palavra-passe
   const [passwordData, setPasswordData] = useState({
@@ -24,6 +42,53 @@ export default function EditarPasswordScreen() {
     new: false,
     confirm: false
   });
+
+  // Efeito para detectar quando o teclado é mostrado ou ocultado
+  useEffect(() => {
+    // Para iOS usamos keyboardWillShow para antecipar a ocultação
+    // Para Android continuamos a usar keyboardDidShow
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardWillShowListener = Keyboard.addListener(
+      keyboardShowEvent,
+      () => {
+        // Inicia a animação para esconder a tabbar
+        Animated.timing(tabbarOpacity, {
+          toValue: 0,
+          duration: 150, // Duração mais curta para esconder rapidamente
+          useNativeDriver: true
+        }).start();
+        setKeyboardVisible(true);
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      keyboardHideEvent,
+      () => {
+        // Inicia a animação para mostrar a tabbar
+        Animated.timing(tabbarOpacity, {
+          toValue: 1,
+          duration: 200, // Um pouco mais lento ao mostrar para suavizar
+          useNativeDriver: true
+        }).start();
+        setKeyboardVisible(false);
+      }
+    );
+
+    // Cleanup function
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
+  // Função para rolar a tela para um campo específico
+  const focusOnInput = (y: number) => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: y, animated: true });
+    }
+  };
 
   // Função para atualizar os campos de palavra-passe
   const handleChange = (field: keyof typeof passwordData, value: string) => {
@@ -63,6 +128,9 @@ export default function EditarPasswordScreen() {
       Alert.alert('Erro', 'A nova palavra-passe deve ter pelo menos 8 caracteres.');
       return;
     }
+
+    // Esconder o teclado para melhor experiência do utilizador
+    Keyboard.dismiss();
 
     // Enviar para a API
     try {
@@ -109,172 +177,192 @@ export default function EditarPasswordScreen() {
   };
 
   return (
-    <View style={[styles.container, {
-      backgroundColor: isDark ? colors.background : colors.accent
-    }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDark ? colors.background : colors.surface }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={goBack}
-        >
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-
-        <Text style={[styles.headerTitle, { color: isDark ? colors.textPrimary : colors.textPrimary }]}>
-          Alterar Palavra-passe
-        </Text>
-
-        <View style={styles.rightHeaderPlaceholder} />
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Seção de Senha Atual */}
-        <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-              Palavra-passe Atual
-            </Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.card : colors.accent,
-                    color: isDark ? colors.textPrimary : colors.textPrimary,
-                    borderColor: isDark ? colors.secondary : colors.background,
-                  }
-                ]}
-                value={passwordData.current_password}
-                onChangeText={(text) => handleChange('current_password', text)}
-                placeholder="Escreva a sua palavra-passe atual"
-                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-                secureTextEntry={!showPasswords.current}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={[styles.container, {
+          backgroundColor: isDark ? colors.background : colors.accent
+        }]}>
+          {/* Header */}
+          <View style={[styles.header, { backgroundColor: isDark ? colors.background : colors.surface }]}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={goBack}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color={colors.primary}
               />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => togglePasswordVisibility('current')}
-              >
-                <Ionicons
-                  name={showPasswords.current ? "eye-off-outline" : "eye-outline"}
-                  size={24}
-                  color={isDark ? colors.textSecondary : colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
+
+            <Text style={[styles.headerTitle, { color: isDark ? colors.textPrimary : colors.textPrimary }]}>
+              Alterar Palavra-passe
+            </Text>
+
+            <View style={styles.rightHeaderPlaceholder} />
           </View>
+
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            {/* Seção de palavra-passe Atual */}
+            <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                  Palavra-passe Atual
+                </Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? colors.card : colors.accent,
+                        color: isDark ? colors.textPrimary : colors.textPrimary,
+                        borderColor: isDark ? colors.secondary : colors.background,
+                      }
+                    ]}
+                    value={passwordData.current_password}
+                    onChangeText={(text) => handleChange('current_password', text)}
+                    placeholder="Escreva a sua palavra-passe atual"
+                    placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                    secureTextEntry={!showPasswords.current}
+                    onFocus={() => focusOnInput(50)}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => togglePasswordVisibility('current')}
+                  >
+                    <Ionicons
+                      name={showPasswords.current ? "eye-off-outline" : "eye-outline"}
+                      size={24}
+                      color={isDark ? colors.textSecondary : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+
+            {/* Seção de Nova palavra-passe */}
+            <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
+
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                  Nova Palavra-passe
+                </Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? colors.card : colors.accent,
+                        color: isDark ? colors.textPrimary : colors.textPrimary,
+                        borderColor: isDark ? colors.secondary : colors.background,
+                      }
+                    ]}
+                    value={passwordData.password}
+                    onChangeText={(text) => handleChange('password', text)}
+                    placeholder="Escreva a sua nova palavra-passe"
+                    placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                    secureTextEntry={!showPasswords.new}
+                    onFocus={() => focusOnInput(200)}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => togglePasswordVisibility('new')}
+                  >
+                    <Ionicons
+                      name={showPasswords.new ? "eye-off-outline" : "eye-outline"}
+                      size={24}
+                      color={isDark ? colors.textSecondary : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.inputNote, { color: isDark ? colors.textTertiary : colors.textTertiary }]}>
+                  A palavra-passe deve conter pelo menos 8 caracteres
+                </Text>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                  Confirmar Nova Palavra-passe
+                </Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? colors.card : colors.accent,
+                        color: isDark ? colors.textPrimary : colors.textPrimary,
+                        borderColor: isDark ? colors.secondary : colors.background,
+                      }
+                    ]}
+                    value={passwordData.password_confirmation}
+                    onChangeText={(text) => handleChange('password_confirmation', text)}
+                    placeholder="Repita a sua nova palavra-passe"
+                    placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                    secureTextEntry={!showPasswords.confirm}
+                    onFocus={() => focusOnInput(300)}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => togglePasswordVisibility('confirm')}
+                  >
+                    <Ionicons
+                      name={showPasswords.confirm ? "eye-off-outline" : "eye-outline"}
+                      size={24}
+                      color={isDark ? colors.textSecondary : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {passwordData.password !== passwordData.password_confirmation && passwordData.password_confirmation !== '' && (
+                  <Text style={[styles.errorText, { color: colors.error }]}>
+                    As palavra-passe não coincidem
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {/* Botão de Salvar */}
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                { backgroundColor: colors.primary }
+              ]}
+              onPress={handleUpdatePassword}
+              disabled={isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.accent} />
+                  <Text style={[styles.saveButtonText, {color: isDark? colors.surface : colors.accent }]}>Guardar Alterações</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Espaço adicional para evitar que o botão fique atrás do teclado */}
+            <View style={{ height: 100 }} />
+          </ScrollView>
+
+          <Animated.View style={{ opacity: tabbarOpacity, position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+            <CustomTabBar />
+          </Animated.View>
         </View>
-
-        {/* Seção de Nova Senha */}
-        <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
-
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-              Nova Palavra-passe
-            </Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.card : colors.accent,
-                    color: isDark ? colors.textPrimary : colors.textPrimary,
-                    borderColor: isDark ? colors.secondary : colors.background,
-                  }
-                ]}
-                value={passwordData.password}
-                onChangeText={(text) => handleChange('password', text)}
-                placeholder="Escreva a sua nova palavra-passe"
-                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-                secureTextEntry={!showPasswords.new}
-              />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => togglePasswordVisibility('new')}
-              >
-                <Ionicons
-                  name={showPasswords.new ? "eye-off-outline" : "eye-outline"}
-                  size={24}
-                  color={isDark ? colors.textSecondary : colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.inputNote, { color: isDark ? colors.textTertiary : colors.textTertiary }]}>
-              A palavra-passe deve conter pelo menos 8 caracteres
-            </Text>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-              Confirmar Nova Palavra-passe
-            </Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.card : colors.accent,
-                    color: isDark ? colors.textPrimary : colors.textPrimary,
-                    borderColor: isDark ? colors.secondary : colors.background,
-                  }
-                ]}
-                value={passwordData.password_confirmation}
-                onChangeText={(text) => handleChange('password_confirmation', text)}
-                placeholder="Repita a sua nova palavra-passe"
-                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-                secureTextEntry={!showPasswords.confirm}
-              />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => togglePasswordVisibility('confirm')}
-              >
-                <Ionicons
-                  name={showPasswords.confirm ? "eye-off-outline" : "eye-outline"}
-                  size={24}
-                  color={isDark ? colors.textSecondary : colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-            {passwordData.password !== passwordData.password_confirmation && passwordData.password_confirmation !== '' && (
-              <Text style={[styles.errorText, { color: colors.error }]}>
-                As palavra-passe não coincidem
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {/* Botão de Salvar */}
-        <TouchableOpacity
-          style={[
-            styles.saveButton,
-            { backgroundColor: colors.primary }
-          ]}
-          onPress={handleUpdatePassword}
-          disabled={isLoading}
-          activeOpacity={0.8}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.accent} />
-              <Text style={[styles.saveButtonText, {color: isDark? colors.surface : colors.accent }]}>Guardar Alterações</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-      <CustomTabBar />
-    </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 

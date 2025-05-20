@@ -1,7 +1,24 @@
 import CustomTabBar from '@/components/CustomTabBar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ActivityIndicator, SafeAreaView, StatusBar, Platform, TextInput, ScrollView } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Image,
+  ActivityIndicator,
+  SafeAreaView,
+  StatusBar,
+  Platform,
+  TextInput,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Animated
+} from 'react-native';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -15,7 +32,10 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 export default function NovoScreen() {
   const { colors, isDark } = useTheme();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const tabbarOpacity = useRef(new Animated.Value(1)).current;
 
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4; // Aumentado para 4 passos
 
@@ -39,6 +59,46 @@ export default function NovoScreen() {
     android: 'https://reporta.up.railway.app/api',
     default: 'https://reporta.up.railway.app/api'
   });
+
+  // Efeito para detectar quando o teclado é mostrado ou ocultado
+  useEffect(() => {
+    // Para iOS usamos keyboardWillShow para antecipar a ocultação
+    // Para Android continuamos usando keyboardDidShow
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardWillShowListener = Keyboard.addListener(
+      keyboardShowEvent,
+      () => {
+        // Inicia a animação para esconder a tabbar
+        Animated.timing(tabbarOpacity, {
+          toValue: 0,
+          duration: 150, // Duração mais curta para esconder rapidamente
+          useNativeDriver: true
+        }).start();
+        setKeyboardVisible(true);
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      keyboardHideEvent,
+      () => {
+        // Inicia a animação para mostrar a tabbar
+        Animated.timing(tabbarOpacity, {
+          toValue: 1,
+          duration: 200, // Um pouco mais lento ao mostrar para suavizar
+          useNativeDriver: true
+        }).start();
+        setKeyboardVisible(false);
+      }
+    );
+
+    // Cleanup function
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
 
   // Função para obter URL de imagem utilizando o endpoint dedicado a fotos
   const getPhotoUrl = (filename: string | null) => {
@@ -257,6 +317,12 @@ export default function NovoScreen() {
     }
   };
 
+  const focusOnInput = (y: number) => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: y, animated: true });
+    }
+  };
+
   async function createReport() {
     try {
       if (!locationCoords || !locationText) {
@@ -273,6 +339,9 @@ export default function NovoScreen() {
         Alert.alert('Erro', 'Por favor, selecione pelo menos uma categoria');
         return;
       }
+
+      // Ocultar o teclado antes de enviar o report
+      Keyboard.dismiss();
 
       setIsLoading(true);
       setUploadProgress(0.1); // Start progress
@@ -369,8 +438,9 @@ export default function NovoScreen() {
           setComment('');
           setCurrentStep(1);
 
-          // Navegar de volta
-          router.push("/(app)/(tabs)");
+          setTimeout(() => {
+            router.replace('/(app)/(tabs)');
+          }, 1000);
         } else {
           // Processar erro da API
           const errorData = await response.json();
@@ -438,11 +508,11 @@ export default function NovoScreen() {
     const progress = (currentStep) / totalSteps;
 
     return (
-      <View style={styles.progressContainer}>
+      <View style={currentStep === 4 ? styles.progressContainerSmall : styles.progressContainer}>
         {isLoading && currentStep === totalSteps ? (
           <View style={styles.uploadProgressContainer}>
             <Progress.Circle
-              size={120}
+              size={currentStep === 4 ? 80 : 120}
               progress={uploadProgress}
               thickness={8}
               color={colors.primary}
@@ -459,7 +529,7 @@ export default function NovoScreen() {
           </View>
         ) : (
           <Progress.Circle
-            size={120}
+            size={currentStep === 4 ? 80 : 120}
             progress={progress}
             thickness={8}
             color={colors.primary}
@@ -621,7 +691,7 @@ export default function NovoScreen() {
   // Novo Step 4: Comentário
   const renderCommentStep = () => {
     return (
-      <ScrollView style={styles.stepContainer}>
+      <View style={styles.stepContainer}>
         <View style={styles.sectionContent}>
           <Text style={[styles.commentLabel, {color: colors.textPrimary}]}>
             Adicione um comentário sobre este report (opcional):
@@ -643,8 +713,11 @@ export default function NovoScreen() {
             value={comment}
             onChangeText={setComment}
           />
+
+          {/* Espaço adicional para evitar que o campo fique atrás do teclado */}
+          <View style={{ height: 250 }} />
         </View>
-      </ScrollView>
+      </View>
     );
   };
 
@@ -688,199 +761,229 @@ export default function NovoScreen() {
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: isDark? colors.background : colors.accent}]}>
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <View style={[styles.header, {backgroundColor: isDark? colors.background : colors.accent}]}>
-          <Text style={[styles.headerTitle, {color: colors.primary}]}>Criar novo report</Text>
-        </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={[styles.container, {backgroundColor: isDark? colors.background : colors.accent}]}>
+          <SafeAreaView style={styles.safeArea}>
+            {/* Header */}
+            <View style={[styles.header, {backgroundColor: isDark? colors.background : colors.accent}]}>
+              <Text style={[styles.headerTitle, {color: colors.primary}]}>Criar novo report</Text>
+            </View>
 
-        {/* Progress indicator */}
-        {renderProgressIndicator()}
-
-        {/* Step Title */}
-        <View style={styles.stepTitleContainer}>
-          <Text style={[styles.stepTitle, {color: colors.textPrimary}]}>
-            {getStepTitle()}
-          </Text>
-        </View>
-
-        {/* Current Step Content */}
-        <View style={styles.content}>
-          {renderCurrentStep()}
-        </View>
-
-        {/* Navigation Buttons */}
-        <View style={[
-          styles.navigationButtons,
-          {
-            backgroundColor: isDark ? colors.surface : "#f9f9f9",
-          }
-        ]}>
-          {currentStep > 1 && (
-            <TouchableOpacity
-              style={[styles.prevButton, {borderColor: colors.secondary}]}
-              onPress={prevStep}
-              disabled={isLoading}
+            {/* Todo o conteúdo envolto em ScrollView para permitir rolagem */}
+            <ScrollView
+              ref={scrollViewRef}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ flexGrow: 1 }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
             >
-              <Ionicons name="arrow-back" size={20} color={colors.primary} />
-              <Text style={[styles.buttonText, {color: colors.primary}]}>Voltar</Text>
-            </TouchableOpacity>
+              {/* Progress indicator */}
+              <View style={currentStep === 4 ? styles.progressContainerSmall : styles.progressContainer}>
+                {renderProgressIndicator()}
+              </View>
+
+              {/* Step Title */}
+              <View style={styles.stepTitleContainer}>
+                <Text style={[styles.stepTitle, {color: colors.textPrimary}]}>
+                  {getStepTitle()}
+                </Text>
+              </View>
+
+              {/* Current Step Content */}
+              <View style={styles.content}>
+                {renderCurrentStep()}
+              </View>
+
+              {/* Espaço para os botões fixos */}
+              <View style={{ height: 80 }} />
+            </ScrollView>
+
+            {/* Navigation Buttons - Em posição absoluta para não ficar sob a TabBar */}
+            <View style={[
+              styles.navigationButtons,
+              {
+                backgroundColor: isDark ? colors.surface : "#f9f9f9",
+                position: 'absolute',
+                bottom: isKeyboardVisible ? 0 : 80, // Acima da TabBar quando ela está visível
+                left: 0,
+                right: 0,
+                zIndex: 10,
+              }
+            ]}>
+              {currentStep > 1 && (
+                <TouchableOpacity
+                  style={[styles.prevButton, {borderColor: colors.secondary}]}
+                  onPress={prevStep}
+                  disabled={isLoading}
+                >
+                  <Ionicons name="arrow-back" size={20} color={colors.primary} />
+                  <Text style={[styles.buttonText, {color: colors.primary}]}>Voltar</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.nextButton,
+                  {backgroundColor: colors.primary},
+                  isLoading && {opacity: 0.7},
+                  currentStep === totalSteps ? {backgroundColor: colors.primary} : null
+                ]}
+                onPress={nextStep}
+                disabled={isLoading}
+              >
+                <Text style={[styles.buttonText, {color: isDark? colors.surface : colors.textTertiary}]}>{getNextButtonText()}</Text>
+                {currentStep < totalSteps ? (
+                  <Ionicons name="arrow-forward" size={20} color={ isDark? colors.surface : colors.textTertiary} />
+                ) : (
+                  <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.textTertiary} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+
+          {/* Location Options Modal */}
+          {showLocationOptions && (
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+                <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Escolha uma opção</Text>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    getCurrentLocation();
+                    setShowLocationOptions(false);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Usar a minha localização atual</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    setMapVisible(true);
+                    setShowLocationOptions(false);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher uma localização no mapa</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton, {borderColor: colors.primary}]}
+                  onPress={() => setShowLocationOptions(false)}
+                >
+                  <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
 
-          <TouchableOpacity
-            style={[
-              styles.nextButton,
-              {backgroundColor: colors.primary},
-              isLoading && {opacity: 0.7},
-              currentStep === totalSteps ? {backgroundColor: colors.primary} : null
-            ]}
-            onPress={nextStep}
-            disabled={isLoading}
-          >
-            <Text style={[styles.buttonText, {color: isDark? colors.surface : colors.textTertiary}]}>{getNextButtonText()}</Text>
-            {currentStep < totalSteps ? (
-              <Ionicons name="arrow-forward" size={20} color={ isDark? colors.surface : colors.textTertiary} />
-            ) : (
-              <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.textTertiary} />
-            )}
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+          {/* Map Selection Modal */}
+          {mapVisible && (
+            <View style={styles.modalOverlay}>
+              <View style={[styles.mapModalContent, {backgroundColor: colors.surface}]}>
+                <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Toque no mapa para escolher a localização</Text>
 
-      {/* Location Options Modal */}
-      {showLocationOptions && (
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Escolha uma opção</Text>
-
-            <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: colors.primary}]}
-              onPress={() => {
-                getCurrentLocation();
-                setShowLocationOptions(false);
-              }}
-            >
-              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Usar a minha localização atual</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: colors.primary}]}
-              onPress={() => {
-                setMapVisible(true);
-                setShowLocationOptions(false);
-              }}
-            >
-              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher uma localização no mapa</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton, {borderColor: colors.primary}]}
-              onPress={() => setShowLocationOptions(false)}
-            >
-              <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Map Selection Modal */}
-      {mapVisible && (
-        <View style={styles.modalOverlay}>
-          <View style={[styles.mapModalContent, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Toque no mapa para escolher a localização</Text>
-
-            <View style={styles.fullMapContainer}>
-              <MapView
-                style={styles.fullMap}
-                initialRegion={{
-                  latitude: locationCoords?.latitude || 41.1579,
-                  longitude: locationCoords?.longitude || -8.6291,
-                  latitudeDelta: 0.0922,
-                  longitudeDelta: 0.0421,
-                }}
-                onPress={async (event) => {
-                  const coords = event.nativeEvent.coordinate;
-                  setLocationCoords(coords);
-
-                  // Obter endereço a partir das coordenadas selecionadas
-                  const address = await getAddressFromCoordinates(coords);
-
-                  if (address) {
-                    setLocationText(address);
-                  } else {
-                    // Fallback para coordenadas
-                    setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
-                  }
-                }}
-              >
-                {locationCoords && (
-                  <Marker
-                    coordinate={{
-                      latitude: locationCoords.latitude,
-                      longitude: locationCoords.longitude,
+                <View style={styles.fullMapContainer}>
+                  <MapView
+                    style={styles.fullMap}
+                    initialRegion={{
+                      latitude: locationCoords?.latitude || 41.1579,
+                      longitude: locationCoords?.longitude || -8.6291,
+                      latitudeDelta: 0.0922,
+                      longitudeDelta: 0.0421,
                     }}
-                  />
-                )}
-              </MapView>
+                    onPress={async (event) => {
+                      const coords = event.nativeEvent.coordinate;
+                      setLocationCoords(coords);
+
+                      // Obter endereço a partir das coordenadas selecionadas
+                      const address = await getAddressFromCoordinates(coords);
+
+                      if (address) {
+                        setLocationText(address);
+                      } else {
+                        // Fallback para coordenadas
+                        setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+                      }
+                    }}
+                  >
+                    {locationCoords && (
+                      <Marker
+                        coordinate={{
+                          latitude: locationCoords.latitude,
+                          longitude: locationCoords.longitude,
+                        }}
+                      />
+                    )}
+                  </MapView>
+                </View>
+
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={[styles.modalButtonMap, styles.confirmButton, {backgroundColor: colors.primary}]}
+                    onPress={() => setMapVisible(false)}
+                  >
+                    <Text style={[styles.modalButtonTextMap, {color: colors.surface}]}>Confirmar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.modalButtonMap, styles.cancelButton, {borderColor: colors.primary}]}
+                    onPress={() => setMapVisible(false)}
+                  >
+                    <Text style={[styles.modalButtonTextMap, {color: colors.primary}]}>Cancelar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
+          )}
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.modalButtonMap, styles.confirmButton, {backgroundColor: colors.primary}]}
-                onPress={() => setMapVisible(false)}
-              >
-                <Text style={[styles.modalButtonTextMap, {color: colors.surface}]}>Confirmar</Text>
-              </TouchableOpacity>
+          {/* Photo Options Modal */}
+          {photoModalVisible && (
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+                <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Adicionar Foto</Text>
 
-              <TouchableOpacity
-                style={[styles.modalButtonMap, styles.cancelButton, {borderColor: colors.primary}]}
-                onPress={() => setMapVisible(false)}
-              >
-                <Text style={[styles.modalButtonTextMap, {color: colors.primary}]}>Cancelar</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    takePhoto();
+                    setPhotoModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Tirar Foto</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    pickImage();
+                    setPhotoModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher da Galeria</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton, {borderColor: colors.primary}]}
+                  onPress={() => setPhotoModalVisible(false)}
+                >
+                  <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
+
+          <Animated.View style={{ opacity: tabbarOpacity, position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+            <CustomTabBar />
+          </Animated.View>
         </View>
-      )}
-
-      {/* Photo Options Modal */}
-      {photoModalVisible && (
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Adicionar Foto</Text>
-
-            <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: colors.primary}]}
-              onPress={() => {
-                takePhoto();
-                setPhotoModalVisible(false);
-              }}
-            >
-              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Tirar Foto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: colors.primary}]}
-              onPress={() => {
-                pickImage();
-                setPhotoModalVisible(false);
-              }}
-            >
-              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher da Galeria</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton, {borderColor: colors.primary}]}
-              onPress={() => setPhotoModalVisible(false)}
-            >
-              <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-      <CustomTabBar />
-    </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -905,6 +1008,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
+    zIndex: 1,
+  },
+  progressContainerSmall: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingBottom: 0,
+    zIndex: 1,
+    height: 100, // Altura fixa menor para a etapa de comentário
   },
   uploadProgressContainer: {
     justifyContent: 'center',
@@ -941,6 +1053,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 15,
     justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.1)',
   },
   prevButton: {
     borderWidth: 1,

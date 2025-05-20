@@ -11,8 +11,9 @@ export default function TabsLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: isDark ? colors.background : colors.primary },
         headerTintColor: isDark ? colors.textTertiary : colors.primary,
+        tabBarHideOnKeyboard: true,
       }}
-      
+
     >
       <Tabs.Screen
         name="index"

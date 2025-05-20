@@ -1,5 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Platform, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+  Platform,
+  Alert,
+  KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
+  EmitterSubscription,
+  Animated
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +39,10 @@ export default function EditarPerfilScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const tabbarOpacity = useRef(new Animated.Value(1)).current;
+
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,6 +61,46 @@ export default function EditarPerfilScreen() {
 
   useEffect(() => {
     fetchUserData();
+  }, []);
+
+  // Efeito para detectar quando o teclado é mostrado ou ocultado
+  useEffect(() => {
+    // Para iOS usamos keyboardWillShow para antecipar a ocultação
+    // Para Android continuamos usando keyboardDidShow
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardWillShowListener = Keyboard.addListener(
+      keyboardShowEvent,
+      () => {
+        // Inicia a animação para esconder a tabbar
+        Animated.timing(tabbarOpacity, {
+          toValue: 0,
+          duration: 150, // Duração mais curta para esconder rapidamente
+          useNativeDriver: true
+        }).start();
+        setKeyboardVisible(true);
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      keyboardHideEvent,
+      () => {
+        // Inicia a animação para mostrar a tabbar
+        Animated.timing(tabbarOpacity, {
+          toValue: 1,
+          duration: 200, // Um pouco mais lento ao mostrar para suavizar
+          useNativeDriver: true
+        }).start();
+        setKeyboardVisible(false);
+      }
+    );
+
+    // Cleanup function
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
   }, []);
 
   const apiUrl = Platform.OS === 'android'
@@ -150,6 +209,12 @@ export default function EditarPerfilScreen() {
     router.navigate('/(app)/definicoes');
   };
 
+  const focusOnInput = (y: number) => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: y, animated: true });
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, {
@@ -165,242 +230,266 @@ export default function EditarPerfilScreen() {
   }
 
   return (
-    <View style={[styles.container, {
-      backgroundColor: isDark ? colors.background : colors.accent,
-    }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDark ? colors.background : colors.surface }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={goBack}
-        >
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-
-        <Text style={[styles.headerTitle, { color: isDark ? colors.textPrimary : colors.textPrimary }]}>
-          Editar Perfil
-        </Text>
-
-        <View style={styles.rightHeaderPlaceholder} />
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Informações Pessoais */}
-        <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-            INFORMAÇÕES PESSOAIS
-          </Text>
-
-          <View style={styles.inputRow}>
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-                Nome
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.card : colors.accent,
-                    color: isDark ? colors.textPrimary : colors.textPrimary,
-                    borderColor: isDark ? colors.secondary : colors.background,
-                  }
-                ]}
-                value={userData.first_name}
-                onChangeText={(text) => handleInputChange('first_name', text)}
-                placeholder="Nome"
-                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={[styles.container, {
+          backgroundColor: isDark ? colors.background : colors.accent,
+        }]}>
+          {/* Header */}
+          <View style={[styles.header, { backgroundColor: isDark ? colors.background : colors.surface }]}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={goBack}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={24}
+                color={colors.primary}
               />
+            </TouchableOpacity>
+
+            <Text style={[styles.headerTitle, { color: isDark ? colors.textPrimary : colors.textPrimary }]}>
+              Editar Perfil
+            </Text>
+
+            <View style={styles.rightHeaderPlaceholder} />
+          </View>
+
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            {/* Informações Pessoais */}
+            <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                INFORMAÇÕES PESSOAIS
+              </Text>
+
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                    Nome
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? colors.card : colors.accent,
+                        color: isDark ? colors.textPrimary : colors.textPrimary,
+                        borderColor: isDark ? colors.secondary : colors.background,
+                      }
+                    ]}
+                    value={userData.first_name}
+                    onChangeText={(text) => handleInputChange('first_name', text)}
+                    placeholder="Nome"
+                    placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                    onFocus={() => focusOnInput(50)}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                    Sobrenome
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? colors.card : colors.accent,
+                        color: isDark ? colors.textPrimary : colors.textPrimary,
+                        borderColor: isDark ? colors.secondary : colors.background,
+                      }
+                    ]}
+                    value={userData.last_name}
+                    onChangeText={(text) => handleInputChange('last_name', text)}
+                    placeholder="Sobrenome"
+                    placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                    onFocus={() => focusOnInput(50)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                  Email
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark ? colors.card : colors.accent,
+                      color: isDark ? colors.textPrimary : colors.textPrimary,
+                      borderColor: isDark ? colors.secondary : colors.background,
+                    }
+                  ]}
+                  value={userData.email}
+                  onChangeText={(text) => handleInputChange('email', text)}
+                  placeholder="email@exemplo.com"
+                  placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={false}
+                  onFocus={() => focusOnInput(150)}
+                />
+                <Text style={[styles.inputNote, { color: isDark ? colors.textTertiary : colors.textTertiary }]}>
+                  O email não pode ser alterado
+                </Text>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                  Telefone
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark ? colors.card : colors.accent,
+                      color: isDark ? colors.textPrimary : colors.textPrimary,
+                      borderColor: isDark ? colors.secondary : colors.background,
+                    }
+                  ]}
+                  value={userData.telephone}
+                  onChangeText={(text) => handleInputChange('telephone', text)}
+                  placeholder="+351 912 345 678"
+                  placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                  keyboardType="phone-pad"
+                  onFocus={() => focusOnInput(220)}
+                />
+              </View>
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-                Sobrenome
+            {/* Endereço */}
+            <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                MORADA
               </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.card : colors.accent,
-                    color: isDark ? colors.textPrimary : colors.textPrimary,
-                    borderColor: isDark ? colors.secondary : colors.background,
-                  }
-                ]}
-                value={userData.last_name}
-                onChangeText={(text) => handleInputChange('last_name', text)}
-                placeholder="Sobrenome"
-                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-              />
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                  Rua
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark ? colors.card : colors.accent,
+                      color: isDark ? colors.textPrimary : colors.textPrimary,
+                      borderColor: isDark ? colors.secondary : colors.background,
+                    }
+                  ]}
+                  value={userData.address.street}
+                  onChangeText={(text) => handleInputChange('address.street', text)}
+                  placeholder="Nome da rua"
+                  placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                  onFocus={() => focusOnInput(350)}
+                />
+              </View>
+
+              <View style={styles.inputRow}>
+                <View style={[styles.inputGroup, { flex: 0.4 }]}>
+                  <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                    Número
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? colors.card : colors.accent,
+                        color: isDark ? colors.textPrimary : colors.textPrimary,
+                        borderColor: isDark ? colors.secondary : colors.background,
+                      }
+                    ]}
+                    value={userData.address.number}
+                    onChangeText={(text) => handleInputChange('address.number', text)}
+                    placeholder="123"
+                    placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                    keyboardType="number-pad"
+                    onFocus={() => focusOnInput(420)}
+                  />
+                </View>
+
+                <View style={[styles.inputGroup, { flex: 0.55 }]}>
+                  <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                    Código Postal
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: isDark ? colors.card : colors.accent,
+                        color: isDark ? colors.textPrimary : colors.textPrimary,
+                        borderColor: isDark ? colors.secondary : colors.background,
+                      }
+                    ]}
+                    value={userData.address.cp}
+                    onChangeText={(text) => handleInputChange('address.cp', text)}
+                    placeholder="1234-567"
+                    placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                    onFocus={() => focusOnInput(420)}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+                  Cidade
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: isDark ? colors.card : colors.accent,
+                      color: isDark ? colors.textPrimary : colors.textPrimary,
+                      borderColor: isDark ? colors.secondary : colors.background,
+                    }
+                  ]}
+                  value={userData.address.city}
+                  onChangeText={(text) => handleInputChange('address.city', text)}
+                  placeholder="Nome da cidade"
+                  placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
+                  onFocus={() => focusOnInput(490)}
+                />
+              </View>
             </View>
-          </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-              Email
-            </Text>
-            <TextInput
+            {/* Botão de Salvar */}
+            <TouchableOpacity
               style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? colors.card : colors.accent,
-                  color: isDark ? colors.textPrimary : colors.textPrimary,
-                  borderColor: isDark ? colors.secondary : colors.background,
-                }
+                styles.saveButton,
+                { backgroundColor: colors.primary }
               ]}
-              value={userData.email}
-              onChangeText={(text) => handleInputChange('email', text)}
-              placeholder="email@exemplo.com"
-              placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={false}
-            />
-            <Text style={[styles.inputNote, { color: isDark ? colors.textTertiary : colors.textTertiary }]}>
-              O email não pode ser alterado
-            </Text>
-          </View>
+              onPress={handleUpdateProfile}
+              disabled={isSaving}
+              activeOpacity={0.8}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.accent} />
+                  <Text style={[styles.saveButtonText, {color: isDark? colors.surface : colors.accent }]}>Guardar Alterações</Text>
+                </>
+              )}
+            </TouchableOpacity>
 
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-              Telefone
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? colors.card : colors.accent,
-                  color: isDark ? colors.textPrimary : colors.textPrimary,
-                  borderColor: isDark ? colors.secondary : colors.background,
-                }
-              ]}
-              value={userData.telephone}
-              onChangeText={(text) => handleInputChange('telephone', text)}
-              placeholder="+351 912 345 678"
-              placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-              keyboardType="phone-pad"
-            />
-          </View>
+            {/* Espaço adicional para evitar que o botão fique atrás do teclado */}
+            <View style={{ height: 100 }} />
+          </ScrollView>
+          <Animated.View style={{ opacity: tabbarOpacity, position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+            <CustomTabBar />
+          </Animated.View>
         </View>
-
-        {/* Endereço */}
-        <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-            MORADA
-          </Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-              Rua
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? colors.card : colors.accent,
-                  color: isDark ? colors.textPrimary : colors.textPrimary,
-                  borderColor: isDark ? colors.secondary : colors.background,
-                }
-              ]}
-              value={userData.address.street}
-              onChangeText={(text) => handleInputChange('address.street', text)}
-              placeholder="Nome da rua"
-              placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-            />
-          </View>
-
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 0.4 }]}>
-              <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-                Número
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.card : colors.accent,
-                    color: isDark ? colors.textPrimary : colors.textPrimary,
-                    borderColor: isDark ? colors.secondary : colors.background,
-                  }
-                ]}
-                value={userData.address.number}
-                onChangeText={(text) => handleInputChange('address.number', text)}
-                placeholder="123"
-                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-                keyboardType="number-pad"
-              />
-            </View>
-
-            <View style={[styles.inputGroup, { flex: 0.55 }]}>
-              <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-                Código Postal
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: isDark ? colors.card : colors.accent,
-                    color: isDark ? colors.textPrimary : colors.textPrimary,
-                    borderColor: isDark ? colors.secondary : colors.background,
-                  }
-                ]}
-                value={userData.address.cp}
-                onChangeText={(text) => handleInputChange('address.cp', text)}
-                placeholder="1234-567"
-                placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.inputLabel, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
-              Cidade
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? colors.card : colors.accent,
-                  color: isDark ? colors.textPrimary : colors.textPrimary,
-                  borderColor: isDark ? colors.secondary : colors.background,
-                }
-              ]}
-              value={userData.address.city}
-              onChangeText={(text) => handleInputChange('address.city', text)}
-              placeholder="Nome da cidade"
-              placeholderTextColor={isDark ? colors.textTertiary : colors.textTertiary}
-            />
-          </View>
-        </View>
-
-        {/* Botão de Salvar */}
-        <TouchableOpacity
-          style={[
-            styles.saveButton,
-            { backgroundColor: colors.primary }
-          ]}
-          onPress={handleUpdateProfile}
-          disabled={isSaving}
-          activeOpacity={0.8}
-        >
-          {isSaving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.accent} />
-              <Text style={[styles.saveButtonText, {color: isDark? colors.surface : colors.accent }]}>Guardar Alterações</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-      <CustomTabBar />
-    </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
