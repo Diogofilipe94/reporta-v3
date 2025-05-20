@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 
 // Configurar como as notificações serão mostradas quando o app estiver em primeiro plano
 Notifications.setNotificationHandler({
@@ -82,17 +83,17 @@ export class NotificationService {
 
   static async setNotificationsEnabled(enabled: boolean): Promise<void> {
     try {
+      await AsyncStorage.setItem(PUSH_NOTIFICATION_ENABLED_KEY, enabled ? 'true' : 'false');
+
       if (enabled) {
-        // Registrar para notificações e enviar token para o servidor
         const token = await this.registerForPushNotifications();
+        console.log('Token obtido para reativação:', token);
+
         if (token) {
-          await this.sendPushTokenToServer(token);
+          const result = await this.sendPushTokenToServer(token);
+          console.log('Resultado do envio do token para reativação:', result);
         }
       } else {
-        // Preservar o estado das notificações como desativado
-        await AsyncStorage.setItem(PUSH_NOTIFICATION_ENABLED_KEY, 'false');
-
-        // Obter o token atual e desregistrá-lo no servidor (sem removê-lo do dispositivo)
         try {
           const { data: token } = await Notifications.getExpoPushTokenAsync();
           if (token) {
@@ -102,13 +103,10 @@ export class NotificationService {
           console.error('Erro ao obter token para desativação:', tokenError);
         }
       }
-
-    // Salvar o estado local
-    await AsyncStorage.setItem(PUSH_NOTIFICATION_ENABLED_KEY, enabled ? 'true' : 'false');
-  } catch (error) {
-    console.error('Erro ao definir status das notificações:', error);
-    throw error; // Re-lançar o erro para tratamento no useNotification
-  }
+    } catch (error) {
+      console.error('Erro ao definir status das notificações:', error);
+      throw error;
+    }
   }
 
   static async sendPushTokenToServer(token: string): Promise<void> {
@@ -182,6 +180,7 @@ export class NotificationService {
   ) {
     // Listener para notificações recebidas quando o app está em primeiro plano
     const receivedSubscription = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notificação recebida:', notification);
       if (onNotificationReceived) {
         onNotificationReceived(notification);
       }
@@ -189,8 +188,36 @@ export class NotificationService {
 
     // Listener para quando o usuário interage com uma notificação
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Resposta de notificação recebida:', response);
+
+      // Navegação baseada no tipo de notificação
+      const data = response.notification.request.content.data;
+
+      if (data && data.type === 'status_update' && data.report_id) {
+        // Navegar para a página do report
+        console.log(`Navegando para o report ID: ${data.report_id}`);
+        router.push(`/(app)/(tabs)/report/${data.report_id}`);
+      }
+
+      // Também chamar o callback fornecido, se houver
       if (onNotificationResponse) {
         onNotificationResponse(response);
+      }
+    });
+
+    // Configurar manipulador de notificações quando o aplicativo é aberto a partir de uma notificação
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (response) {
+        console.log('App aberto a partir de notificação:', response);
+        const data = response.notification.request.content.data;
+
+        if (data && data.type === 'status_update' && data.report_id) {
+          // Pequeno atraso para garantir que a navegação funcione após a inicialização
+          setTimeout(() => {
+            console.log(`Navegando para o report ID: ${data.report_id}`);
+            router.push(`/(app)/(tabs)/report/${data.report_id}`);
+          }, 1000);
+        }
       }
     });
 

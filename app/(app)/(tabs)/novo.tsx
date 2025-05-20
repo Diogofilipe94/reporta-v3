@@ -358,7 +358,7 @@ export default function NovoScreen() {
 
       // Para compatibilidade com o backend atual:
       const coordsString = `${locationCoords.latitude.toFixed(6)}, ${locationCoords.longitude.toFixed(6)}`;
-      const locationString = `${locationText} - ${coordsString}`;
+      const locationString = `${locationText} - Coordenadas: ${coordsString}`;
       formData.append('location', locationString);
 
       // Adicionar comentário

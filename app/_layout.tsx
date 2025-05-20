@@ -1,6 +1,6 @@
-// app/index.tsx (atualizado para configurar notificações no app)
+// app/_layout.tsx (atualizado para navegação com notificações)
 import React, { useEffect, useRef } from 'react';
-import { Slot, SplashScreen } from 'expo-router';
+import { Slot, SplashScreen, router } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'react-native';
@@ -28,7 +28,6 @@ SplashScreen.preventAutoHideAsync();
 // Componente separado para StatusBar que usa useTheme
 function StatusBarComponent() {
   const { colors, isDark } = useTheme();
-
   return (
     <StatusBar
       barStyle={isDark ? 'light-content' : 'dark-content'}
@@ -42,11 +41,27 @@ function StatusBarComponent() {
   );
 }
 
+// Função auxiliar para navegação baseada em notificação
+function handleNotificationNavigation(data: any) {
+  // Verificar se os dados contêm o tipo e ID do report
+  if (data && data.type === 'status_update' && data.report_id) {
+    console.log(`Navegando para o report ID: ${data.report_id}`);
+
+    // Usar setTimeout para garantir que a navegação ocorra após a inicialização do app
+    setTimeout(() => {
+      router.push(`/(app)/(tabs)/report/${data.report_id}`);
+    }, 500);
+
+    return true;
+  }
+  return false;
+}
+
 // Layout raiz que não depende da verificação de autenticação
 export default function RootLayout() {
   // Refs para gerenciar notificações
-  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
-  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Notifications.Subscription | null>(null);
 
   // Carregar fontes
   const [fontsLoaded] = useFonts({
@@ -70,25 +85,51 @@ export default function RootLayout() {
 
     checkNotificationStatus();
 
-    // Configurar listeners
+    // Verificar se o app foi aberto por uma notificação (cold start)
+    const checkInitialNotification = async () => {
+      try {
+        const response = await Notifications.getLastNotificationResponseAsync();
+        if (response) {
+          console.log('App aberto por notificação (cold start):', response);
+          const data = response.notification.request.content.data;
+
+          if (data) {
+            // Tentar navegar baseado nos dados da notificação
+            handleNotificationNavigation(data);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao verificar notificação inicial:', error);
+      }
+    };
+
+    // Executar após um curto atraso para garantir que o app está totalmente inicializado
+    setTimeout(() => {
+      checkInitialNotification();
+    }, 1000);
+
+    // Configurar listeners para notificações recebidas
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notificação recebida:', notification);
-      // Você pode adicionar lógica adicional aqui
+      console.log('Notificação recebida com app aberto:', notification);
+      // Aqui você pode adicionar lógica adicional (como mostrar um alerta ou badge)
     });
 
+    // Configurar listeners para resposta a notificações (quando o usuário toca)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Resposta da notificação:', response);
-      // Aqui você pode adicionar lógica de navegação com base na notificação
-      // Por exemplo, redirecionar o utilizador para uma tela específica
+      console.log('Usuário interagiu com notificação:', response);
+      const data = response.notification.request.content.data;
+
+      // Navegar com base nos dados da notificação
+      handleNotificationNavigation(data);
     });
 
     // Limpar listeners ao desmontar
     return () => {
       if (notificationListener.current) {
-        notificationListener.current?.remove();
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        responseListener.current?.remove();
+        responseListener.current.remove();
       }
     };
   }, []);

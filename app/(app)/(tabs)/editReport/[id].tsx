@@ -1,5 +1,21 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Platform, Alert, SafeAreaView, StatusBar, TextInput } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  Platform,
+  Alert,
+  SafeAreaView,
+  StatusBar,
+  TextInput,
+  Keyboard,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Animated
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -23,6 +39,10 @@ export default function EditReportScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const tabbarOpacity = useRef(new Animated.Value(1)).current;
+
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   // Estados para dados do report
   const [report, setReport] = useState<UserReport | null>(null);
@@ -43,6 +63,53 @@ export default function EditReportScreen() {
   const [mapVisible, setMapVisible] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
   const [imageError, setImageError] = useState(false);
+
+  // Efeito para detectar quando o teclado é mostrado ou ocultado
+  useEffect(() => {
+    // Para iOS usamos keyboardWillShow para antecipar a ocultação
+    // Para Android continuamos usando keyboardDidShow
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardWillShowListener = Keyboard.addListener(
+      keyboardShowEvent,
+      () => {
+        // Inicia a animação para esconder a tabbar
+        Animated.timing(tabbarOpacity, {
+          toValue: 0,
+          duration: 150, // Duração mais curta para esconder rapidamente
+          useNativeDriver: true
+        }).start();
+        setKeyboardVisible(true);
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      keyboardHideEvent,
+      () => {
+        // Inicia a animação para mostrar a tabbar
+        Animated.timing(tabbarOpacity, {
+          toValue: 1,
+          duration: 200, // Um pouco mais lento ao mostrar para suavizar
+          useNativeDriver: true
+        }).start();
+        setKeyboardVisible(false);
+      }
+    );
+
+    // Cleanup function
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
+  // Função para fazer o scroll até um campo específico
+  const focusOnInput = (y: number) => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: y, animated: true });
+    }
+  };
 
   // Função para capitalizar texto
   const capitalizeText = (text: string | null | undefined): string => {
@@ -366,6 +433,9 @@ export default function EditReportScreen() {
         return;
       }
 
+      // Fechar o teclado antes de salvar
+      Keyboard.dismiss();
+
       setIsSaving(true);
       const token = await AsyncStorage.getItem('token');
 
@@ -480,354 +550,373 @@ export default function EditReportScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark? colors.background : colors.accent }]}>
-      <Stack.Screen
-        options={{
-          title: 'Editar Report',
-          headerStyle: { backgroundColor: isDark? colors.background : colors.accent },
-          headerTintColor: colors.primary,
-          headerShadowVisible: false,
-          headerLeft: () => (
-          <TouchableOpacity onPress={() => router.navigate(`/report/${id}`)}>
-              <Ionicons name="arrow-back" size={24} color={colors.primary} style={{paddingHorizontal:16}}/>
-            </TouchableOpacity>
-          ),
-        }}
-      />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 50}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={[styles.container, { backgroundColor: isDark? colors.background : colors.accent }]}>
+          <Stack.Screen
+            options={{
+              title: 'Editar Report',
+              headerStyle: { backgroundColor: isDark? colors.background : colors.accent },
+              headerTintColor: colors.primary,
+              headerShadowVisible: false,
+              headerLeft: () => (
+                <TouchableOpacity onPress={() => router.navigate(`/report/${id}`)}>
+                  <Ionicons name="arrow-back" size={24} color={colors.primary} style={{paddingHorizontal:16}}/>
+                </TouchableOpacity>
+              ),
+            }}
+          />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
-      >
-        {/* Seção: Foto */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Foto</Text>
-
-          <TouchableOpacity
-            style={[
-              styles.photoUploadContainer,
-              {
-                borderColor: colors.divider,
-                backgroundColor: isDark ? colors.surface : "#f9f9f9"
-              }
-            ]}
-            onPress={photoURI ? undefined : () => setPhotoModalVisible(true)}
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.contentContainer}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
-            {photoURI ? (
-              <View style={styles.photoContainer}>
-                {imageError ? (
-                  <View style={[styles.imagePlaceholder, {backgroundColor: colors.divider}]}>
-                    <Ionicons name="image-outline" size={48} color={colors.textSecondary} />
-                    <Text style={{color: colors.textSecondary, marginTop: 10}}>
-                      Imagem indisponível
-                    </Text>
+            {/* Seção: Foto */}
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Foto</Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.photoUploadContainer,
+                  {
+                    borderColor: colors.divider,
+                    backgroundColor: isDark ? colors.surface : "#f9f9f9"
+                  }
+                ]}
+                onPress={photoURI ? undefined : () => setPhotoModalVisible(true)}
+              >
+                {photoURI ? (
+                  <View style={styles.photoContainer}>
+                    {imageError ? (
+                      <View style={[styles.imagePlaceholder, {backgroundColor: colors.divider}]}>
+                        <Ionicons name="image-outline" size={48} color={colors.textSecondary} />
+                        <Text style={{color: colors.textSecondary, marginTop: 10}}>
+                          Imagem indisponível
+                        </Text>
+                      </View>
+                    ) : (
+                      <Image
+                        source={{ uri: photoURI }}
+                        style={styles.photoPreview}
+                        contentFit="cover"
+                        onError={handleImageError}
+                        transition={300}
+                        cachePolicy="memory-disk"
+                      />
+                    )}
+                    <TouchableOpacity
+                      style={styles.changePhotoButton}
+                      onPress={() => setPhotoModalVisible(true)}
+                    >
+                      <Text style={styles.changePhotoText}>Alterar foto</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : (
-                  <Image
-                    source={{ uri: photoURI }}
-                    style={styles.photoPreview}
-                    contentFit="cover"
-                    onError={handleImageError}
-                    transition={300}
-                    cachePolicy="memory-disk"
-                  />
+                  <View style={styles.photoPlaceholder}>
+                    <Ionicons name="camera" size={50} color={colors.textSecondary} />
+                    <Text style={[styles.photoPlaceholderText, {color: colors.textSecondary}]}>Adicionar foto</Text>
+                  </View>
                 )}
-                <TouchableOpacity
-                  style={styles.changePhotoButton}
-                  onPress={() => setPhotoModalVisible(true)}
-                >
-                  <Text style={styles.changePhotoText}>Alterar foto</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.photoPlaceholder}>
-                <Ionicons name="camera" size={50} color={colors.textSecondary} />
-                <Text style={[styles.photoPlaceholderText, {color: colors.textSecondary}]}>Adicionar foto</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Seção: Categoria */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Categorias</Text>
-
-          {fetchingCategories ? (
-            <ActivityIndicator size="large" color={colors.primary} />
-          ) : (
-            <View style={styles.categoryChipsContainer}>
-              {categories.map(category => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor: isDark ? colors.surface : colors.accent,
-                      borderColor: isDark ? colors.surface : colors.background,
-                    },
-                    selectedCategories.includes(category.id) && [
-                      styles.selectedCategoryChip,
-                      {backgroundColor: isDark? colors.surface : colors.primary, borderColor: isDark? colors.accent : colors.surface}
-                    ]
-                  ]}
-                  onPress={() => toggleCategorySelection(category.id)}
-                >
-                  <Text
-                    style={[
-                      {color: isDark? colors.accent : colors.textPrimary},
-                      selectedCategories.includes(category.id) && [
-                        {color: isDark ? colors.accent : colors.textTertiary}
-                      ]
-                    ]}
-                  >
-                    {capitalizeText(category.category)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
 
-        {/* Seção: Localização */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Localização</Text>
+            {/* Seção: Categoria */}
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Categorias</Text>
 
-          <TouchableOpacity
-            style={[styles.locationSelectButton, {backgroundColor: isDark? colors.surface : colors.primary, borderColor: colors.accent}]}
-            onPress={() => setShowLocationOptions(true)}
-          >
-            <Text style={[styles.locationSelectText, {color: isDark? colors.accent : colors.textTertiary}]}>
-              {locationText ? 'Alterar localização' : 'Selecionar localização'}
-            </Text>
-            <Ionicons name="location" size={24} color={isDark? colors.accent : colors.textTertiary} />
-          </TouchableOpacity>
-
-          {locationText && (
-            <View style={[styles.locationInfoContainer, {backgroundColor: isDark? colors.surface : colors.accent}]}>
-              <Text style={[styles.locationInfoTitle, {color: colors.textPrimary}]}>Morada:</Text>
-              <Text style={[styles.locationInfoText, {color: colors.textPrimary}]}>{locationText}</Text>
-
-              {locationCoords && (
-                <>
-                  <Text style={[styles.locationInfoTitle, {color: colors.textPrimary, marginTop: 8}]}>Coordenadas:</Text>
-                  <Text style={[styles.locationInfoText, {color: colors.textSecondary, fontSize: 12}]}>
-                    {locationCoords.latitude.toFixed(6)}, {locationCoords.longitude.toFixed(6)}
-                  </Text>
-                </>
+              {fetchingCategories ? (
+                <ActivityIndicator size="large" color={colors.primary} />
+              ) : (
+                <View style={styles.categoryChipsContainer}>
+                  {categories.map(category => (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={[
+                        styles.categoryChip,
+                        {
+                          backgroundColor: isDark ? colors.surface : colors.accent,
+                          borderColor: isDark ? colors.surface : colors.background,
+                        },
+                        selectedCategories.includes(category.id) && [
+                          styles.selectedCategoryChip,
+                          {backgroundColor: isDark? colors.surface : colors.primary, borderColor: isDark? colors.accent : colors.surface}
+                        ]
+                      ]}
+                      onPress={() => toggleCategorySelection(category.id)}
+                    >
+                      <Text
+                        style={[
+                          {color: isDark? colors.accent : colors.textPrimary},
+                          selectedCategories.includes(category.id) && [
+                            {color: isDark ? colors.accent : colors.textTertiary}
+                          ]
+                        ]}
+                      >
+                        {capitalizeText(category.category)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               )}
             </View>
-          )}
 
-          {locationCoords && (
-            <View style={styles.miniMapContainer}>
-              <MapView
-                style={styles.miniMap}
-                region={{
-                  latitude: locationCoords.latitude,
-                  longitude: locationCoords.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
+            {/* Seção: Localização */}
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Localização</Text>
+
+              <TouchableOpacity
+                style={[styles.locationSelectButton, {backgroundColor: isDark? colors.surface : colors.primary, borderColor: colors.accent}]}
+                onPress={() => setShowLocationOptions(true)}
               >
-                <Marker
-                  coordinate={{
-                    latitude: locationCoords.latitude,
-                    longitude: locationCoords.longitude,
-                  }}
-                />
-              </MapView>
-            </View>
-          )}
-        </View>
+                <Text style={[styles.locationSelectText, {color: isDark? colors.accent : colors.textTertiary}]}>
+                  {locationText ? 'Alterar localização' : 'Selecionar localização'}
+                </Text>
+                <Ionicons name="location" size={24} color={isDark? colors.accent : colors.textTertiary} />
+              </TouchableOpacity>
 
-        {/* Seção: Comentário - Nova seção */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Comentário</Text>
-          <TextInput
-            style={[
-              styles.commentInput,
-              {
-                backgroundColor: isDark ? colors.surface : "#f9f9f9",
-                borderColor: colors.divider,
-                color: colors.textPrimary
-              }
-            ]}
-            placeholder="Adicione um comentário sobre este report (opcional)"
-            placeholderTextColor={colors.textSecondary}
-            multiline={true}
-            numberOfLines={6}
-            textAlignVertical="top"
-            value={comment}
-            onChangeText={setComment}
-          />
-        </View>
+              {locationText && (
+                <View style={[styles.locationInfoContainer, {backgroundColor: isDark? colors.surface : colors.accent}]}>
+                  <Text style={[styles.locationInfoTitle, {color: colors.textPrimary}]}>Morada:</Text>
+                  <Text style={[styles.locationInfoText, {color: colors.textPrimary}]}>{locationText}</Text>
 
-        {/* Botões de ação */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.cancelButton, { borderColor: colors.textSecondary }]}
-            onPress={() => router.navigate(`/report/${id}`)}
-            disabled={isSaving}
-          >
-            <Text style={[styles.buttonText, { color: colors.textPrimary }]}>Cancelar</Text>
-          </TouchableOpacity>
+                  {locationCoords && (
+                    <>
+                      <Text style={[styles.locationInfoTitle, {color: colors.textPrimary, marginTop: 8}]}>Coordenadas:</Text>
+                      <Text style={[styles.locationInfoText, {color: colors.textSecondary, fontSize: 12}]}>
+                        {locationCoords.latitude.toFixed(6)}, {locationCoords.longitude.toFixed(6)}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              )}
 
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              { backgroundColor: colors.primary },
-              isSaving && { opacity: 0.7 }
-            ]}
-            onPress={saveReport}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ActivityIndicator size="small" color={colors.textTertiary} />
-            ) : (
-              <>
-                <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.textTertiary} />
-                <Text style={[styles.buttonText, { color: isDark? colors.surface : colors.textTertiary, marginLeft: 5 }]}>Guardar</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      {/* Modais */}
-      {/* Modal de opções de localização */}
-      {showLocationOptions && (
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Escolha uma opção</Text>
-
-            <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: colors.primary}]}
-              onPress={() => {
-                getCurrentLocation();
-                setShowLocationOptions(false);
-              }}
-            >
-              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Usar minha localização atual</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: colors.primary}]}
-              onPress={() => {
-                setMapVisible(true);
-                setShowLocationOptions(false);
-              }}
-            >
-              <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher uma localização no mapa</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelModalButton, {borderColor: colors.primary}]}
-              onPress={() => setShowLocationOptions(false)}
-            >
-              <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Modal do mapa */}
-      {mapVisible && (
-        <View style={styles.modalOverlay}>
-          <View style={[styles.mapModalContent, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Toque no mapa para escolher a localização</Text>
-
-            <View style={styles.fullMapContainer}>
-              <MapView
-                style={styles.fullMap}
-                initialRegion={{
-                  latitude: locationCoords?.latitude || 41.1579,
-                  longitude: locationCoords?.longitude || -8.6291,
-                  latitudeDelta: 0.0922,
-                  longitudeDelta: 0.0421,
-                }}
-                onPress={async (event) => {
-                  const coords = event.nativeEvent.coordinate;
-                  setLocationCoords(coords);
-
-                  // Obter endereço
-                  const address = await getAddressFromCoordinates(coords);
-
-                  if (address) {
-                    setLocationText(address);
-                  } else {
-                    setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
-                  }
-                }}
-              >
-                {locationCoords && (
-                  <Marker
-                    coordinate={{
+              {locationCoords && (
+                <View style={styles.miniMapContainer}>
+                  <MapView
+                    style={styles.miniMap}
+                    region={{
                       latitude: locationCoords.latitude,
                       longitude: locationCoords.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
                     }}
-                  />
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: locationCoords.latitude,
+                        longitude: locationCoords.longitude,
+                      }}
+                    />
+                  </MapView>
+                </View>
+              )}
+            </View>
+
+            {/* Seção: Comentário - Nova seção */}
+            <View style={[styles.section, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Comentário</Text>
+              <TextInput
+                style={[
+                  styles.commentInput,
+                  {
+                    backgroundColor: isDark ? colors.surface : "#f9f9f9",
+                    borderColor: colors.divider,
+                    color: colors.textPrimary
+                  }
+                ]}
+                placeholder="Adicione um comentário sobre este report (opcional)"
+                placeholderTextColor={colors.textSecondary}
+                multiline={true}
+                numberOfLines={6}
+                textAlignVertical="top"
+                value={comment}
+                onChangeText={setComment}
+                onFocus={() => focusOnInput(980)} // Rolagem para o campo de comentário quando focado
+              />
+            </View>
+
+            {/* Botões de ação */}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.cancelButton, { borderColor: colors.textSecondary }]}
+                onPress={() => router.navigate(`/report/${id}`)}
+                disabled={isSaving}
+              >
+                <Text style={[styles.buttonText, { color: colors.textPrimary }]}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: colors.primary },
+                  isSaving && { opacity: 0.7 }
+                ]}
+                onPress={saveReport}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color={colors.textTertiary} />
+                ) : (
+                  <>
+                    <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.textTertiary} />
+                    <Text style={[styles.buttonText, { color: isDark? colors.surface : colors.textTertiary, marginLeft: 5 }]}>Guardar</Text>
+                  </>
                 )}
-              </MapView>
-            </View>
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.modalButtonMap, styles.confirmButton, {backgroundColor: colors.primary}]}
-                onPress={() => setMapVisible(false)}
-              >
-                <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Confirmar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButtonMap, styles.cancelModalButton, {borderColor: colors.primary}]}
-                onPress={() => setMapVisible(false)}
-              >
-                <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
               </TouchableOpacity>
             </View>
-          </View>
+
+            {/* Espaço adicional para evitar que o conteúdo fique atrás da TabBar */}
+            <View style={{ height: 100 }} />
+          </ScrollView>
+
+          {/* Modais */}
+          {/* Modal de opções de localização */}
+          {showLocationOptions && (
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+                <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Escolha uma opção</Text>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    getCurrentLocation();
+                    setShowLocationOptions(false);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Usar minha localização atual</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    setMapVisible(true);
+                    setShowLocationOptions(false);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Escolher uma localização no mapa</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelModalButton, {borderColor: colors.primary}]}
+                  onPress={() => setShowLocationOptions(false)}
+                >
+                  <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Modal do mapa */}
+          {mapVisible && (
+            <View style={styles.modalOverlay}>
+              <View style={[styles.mapModalContent, {backgroundColor: colors.surface}]}>
+                <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Toque no mapa para escolher a localização</Text>
+
+                <View style={styles.fullMapContainer}>
+                  <MapView
+                    style={styles.fullMap}
+                    initialRegion={{
+                      latitude: locationCoords?.latitude || 41.1579,
+                      longitude: locationCoords?.longitude || -8.6291,
+                      latitudeDelta: 0.0922,
+                      longitudeDelta: 0.0421,
+                    }}
+                    onPress={async (event) => {
+                      const coords = event.nativeEvent.coordinate;
+                      setLocationCoords(coords);
+
+                      // Obter endereço
+                      const address = await getAddressFromCoordinates(coords);
+
+                      if (address) {
+                        setLocationText(address);
+                      } else {
+                        setLocationText(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+                      }
+                    }}
+                  >
+                    {locationCoords && (
+                      <Marker
+                        coordinate={{
+                          latitude: locationCoords.latitude,
+                          longitude: locationCoords.longitude,
+                        }}
+                      />
+                    )}
+                  </MapView>
+                </View>
+
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={[styles.modalButtonMap, styles.confirmButton, {backgroundColor: colors.primary}]}
+                    onPress={() => setMapVisible(false)}
+                  >
+                    <Text style={[styles.modalButtonText, {color: isDark? colors.surface : colors.textTertiary}]}>Confirmar</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.modalButtonMap, styles.cancelModalButton, {borderColor: colors.primary}]}
+                    onPress={() => setMapVisible(false)}
+                  >
+                    <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Modal de opções de foto */}
+          {photoModalVisible && (
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+                <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Adicionar Foto</Text>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    takePhoto();
+                    setPhotoModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Tirar Foto</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                  onPress={() => {
+                    pickImage();
+                    setPhotoModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Escolher da Galeria</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelModalButton, {borderColor: colors.primary}]}
+                  onPress={() => setPhotoModalVisible(false)}
+                >
+                  <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* TabBar com animação */}
+          <Animated.View style={{ opacity: tabbarOpacity, position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+            <CustomTabBar />
+          </Animated.View>
         </View>
-      )}
-
-      {/* Modal de opções de foto */}
-      {photoModalVisible && (
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>Adicionar Foto</Text>
-
-            <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: colors.primary}]}
-              onPress={() => {
-                takePhoto();
-                setPhotoModalVisible(false);
-              }}
-            >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Tirar Foto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, {backgroundColor: colors.primary}]}
-              onPress={() => {
-                pickImage();
-                setPhotoModalVisible(false);
-              }}
-            >
-              <Text style={[styles.modalButtonText, {color: colors.textTertiary}]}>Escolher da Galeria</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelModalButton, {borderColor: colors.primary}]}
-              onPress={() => setPhotoModalVisible(false)}
-            >
-              <Text style={[styles.modalButtonText, {color: colors.primary}]}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-      <CustomTabBar />
-    </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
