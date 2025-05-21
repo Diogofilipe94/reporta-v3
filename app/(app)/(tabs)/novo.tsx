@@ -52,11 +52,7 @@ export default function NovoScreen() {
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
 
-  const BACKEND_BASE_URL = Platform.select({
-    ios: 'https://reporta.up.railway.app/api',
-    android: 'https://reporta.up.railway.app/api',
-    default: 'https://reporta.up.railway.app/api'
-  });
+  const BACKEND_BASE_URL = 'https://reporta.up.railway.app/api';
 
   // Efeito para detectar quando o teclado é mostrado ou ocultado
   useEffect(() => {
@@ -230,7 +226,7 @@ export default function NovoScreen() {
         Alert.alert('Permissão negada', 'A permissão para aceder à camera é necessária para esta funcionalidade.');
         return;
       }
-      
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -255,7 +251,7 @@ export default function NovoScreen() {
         Alert.alert('Permissão negada', 'A permissão da galeria é necessária para esta funcionalidade.');
         return;
       }
-      
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -420,7 +416,7 @@ export default function NovoScreen() {
           const data = await response.json();
           console.log('API Response:', data);
 
-          Alert.alert('Success', 'Report created successfully!');
+          Alert.alert('Success', 'Report criado com sucesso!');
 
           // Resetar todos os estados
           setLocationText('');
@@ -439,7 +435,7 @@ export default function NovoScreen() {
           const errorData = await response.json();
           console.error('API Error:', errorData);
 
-          let errorMessage = 'Error creating report';
+          let errorMessage = 'Erro ao criar o report.';
           if (errorData.messages) {
             const errorMessages = Object.values(errorData.messages).flat().join('\n');
             errorMessage = errorMessages;
@@ -451,13 +447,13 @@ export default function NovoScreen() {
         }
       } catch (error) {
         console.error('Request error:', error);
-        Alert.alert('Connection Error', 'Could not connect to server.');
+        Alert.alert('Connection Error', 'Não foi possivel connectar com o servido.');
       } finally {
         setIsLoading(false);
       }
     } catch (error) {
       console.error('General error:', error);
-      Alert.alert('Error', 'An error occurred while creating the report');
+      Alert.alert('Error', 'Um erro ocorreu ao criar o report.');
       setIsLoading(false);
     }
   }

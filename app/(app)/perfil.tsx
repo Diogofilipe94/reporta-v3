@@ -57,13 +57,9 @@ export default function ProfileScreen() {
     loadData();
   }, []);
 
-  const apiUrl = Platform.OS === 'android'
-    ? 'https://reporta.up.railway.app/api/user'
-    : 'https://reporta.up.railway.app/api/user';
+  const apiUrl = 'https://reporta.up.railway.app/api/user';
 
-  const pointsApiUrl = Platform.OS === 'android'
-    ? 'https://reporta.up.railway.app/api/user/points'
-    : 'https://reporta.up.railway.app/api/user/points';
+  const pointsApiUrl = 'https://reporta.up.railway.app/api/user/points';
 
   async function getUser() {
     try {

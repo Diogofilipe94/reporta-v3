@@ -21,11 +21,8 @@ import { UserReport } from '@/types/types';
 import { useRouter } from 'expo-router';
 
 
-const BACKEND_BASE_URL = Platform.select({
-  ios: 'https://reporta.up.railway.app',
-  android: 'https://reporta.up.railway.app',
-  default: 'https://reporta.up.railway.app'
-});
+const BACKEND_BASE_URL = "https://reporta.up.railway.app";
+
 
 const getFullImageUrl = (relativePath: string | null, reportId?: number) => {
   if (!relativePath) return null;
@@ -65,6 +62,17 @@ export default function HomeScreen() {
   useEffect(() => {
     getUserReports();
   }, []);
+
+
+  useEffect(() => {
+  // Log para verificar as URLs das imagens
+  if (reports.length > 0) {
+    reports.forEach(report => {
+      const imageUrl = report.photo_url || getFullImageUrl(report.photo, report.id);
+      console.log(`Report ${report.id} - URL da imagem: ${imageUrl}`);
+    });
+  }
+}, [reports]);
 
   interface StatusStyle {
     icon: JSX.Element;
@@ -135,11 +143,11 @@ export default function HomeScreen() {
   };
 
   const handleImageError = (error: any, reportId: number, imageUrl: string) => {
-    console.error(`Erro ao carregar imagem do report ${reportId}:`, error);
-    console.log('URL com erro:', imageUrl);
+  console.error(`Erro ao carregar imagem do report ${reportId}:`, JSON.stringify(error));
+  console.log('URL com erro:', imageUrl);
 
-    // Marca essa imagem como com erro para mostrar um placeholder
-    setImageErrors(prev => ({ ...prev, [reportId]: true }));
+  // Marca essa imagem como com erro para mostrar um placeholder
+  setImageErrors(prev => ({ ...prev, [reportId]: true }));
   };
 
   // Função para navegar para a página de detalhes do report
@@ -262,7 +270,7 @@ export default function HomeScreen() {
                                 </View>
                               ) : (
                                 <Image
-                                  source={imageUrl}
+                                  source={imageUrl ? { uri: imageUrl } : undefined}
                                   style={styles.reportPhoto}
                                   onError={(error) => handleImageError(error, report.id, imageUrl || '')}
                                   contentFit="cover"

@@ -103,10 +103,8 @@ export default function EditarPerfilScreen() {
     };
   }, []);
 
-  const apiUrl = Platform.OS === 'android'
-    ? 'https://reporta.up.railway.app/api/user'
-    : 'https://reporta.up.railway.app/api/user';
-
+  const apiUrl = 'https://reporta.up.railway.app/api/user';
+  
   const fetchUserData = async () => {
     try {
       setIsLoading(true);

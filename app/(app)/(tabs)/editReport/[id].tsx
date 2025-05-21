@@ -28,11 +28,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import CustomTabBar from '@/components/CustomTabBar';
 import { ImageManipulator } from 'expo-image-manipulator';
 
-const BACKEND_BASE_URL = Platform.select({
-  ios: 'https://reporta.up.railway.app',
-  android: 'https://reporta.up.railway.app',
-  default: 'https://reporta.up.railway.app'
-});
+const BACKEND_BASE_URL = 'https://reporta.up.railway.app';
 
 export default function EditReportScreen() {
   const { id } = useLocalSearchParams();
@@ -300,7 +296,7 @@ export default function EditReportScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Location permission is required.');
+        Alert.alert('Permission denied', 'A permissão de localização é necessária para esta funcionalidade.');
         return;
       }
 
@@ -325,7 +321,7 @@ export default function EditReportScreen() {
         setLocationText(`${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
       }
     } catch (error) {
-      Alert.alert('Error', 'Could not get your location.');
+      Alert.alert('Error', 'Não foi possível obter a localização atual.');
       console.error(error);
     }
   };
@@ -350,7 +346,7 @@ export default function EditReportScreen() {
         Alert.alert('Permissão negada', 'A permissão da camera é necessária para esta funcionalidade.');
         return;
       }
-      
+
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -363,7 +359,7 @@ export default function EditReportScreen() {
       }
     } catch (error) {
       console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Could not take photo.');
+      Alert.alert('Error', 'Não foi possível tirar a foto.');
     }
   };
 
@@ -375,7 +371,7 @@ export default function EditReportScreen() {
         Alert.alert('Permissão negada', 'A permissão para aceder à camera é necessária para esta funcionalidade.');
         return;
       }
-      
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: true,
@@ -388,7 +384,7 @@ export default function EditReportScreen() {
       }
     } catch (error) {
       console.error('Error selecting image:', error);
-      Alert.alert('Error', 'Could not select image.');
+      Alert.alert('Error', 'Não foi possível selecionar a imagem.');
     }
   };
 

@@ -15,11 +15,7 @@ export default function ReportDetailsScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
 
-  const BACKEND_BASE_URL = Platform.select({
-    ios: 'https://reporta.up.railway.app',
-    android: 'https://reporta.up.railway.app',
-    default: 'https://reporta.up.railway.app'
-  });
+  const BACKEND_BASE_URL = 'https://reporta.up.railway.app';
 
   // Função atualizada para usar o endpoint de photos
   const getFullImageUrl = (relativePath: string | null) => {

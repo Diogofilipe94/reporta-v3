@@ -143,9 +143,7 @@ export default function EditarPasswordScreen() {
         return;
       }
 
-      const apiUrl = Platform.OS === 'android'
-        ? 'https://reporta.up.railway.app/api/user'
-        : 'https://reporta.up.railway.app/api/user';
+      const apiUrl = 'https://reporta.up.railway.app/api/user';
 
       const response = await fetch(apiUrl, {
         method: 'PUT',
