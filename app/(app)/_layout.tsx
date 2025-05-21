@@ -61,7 +61,6 @@ export default function AppLayout() {
           width: 320,
         },
         headerRight: () => null,
-
       }}
     >
       <Drawer.Screen

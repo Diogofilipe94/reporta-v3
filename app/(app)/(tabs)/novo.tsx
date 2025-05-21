@@ -44,7 +44,7 @@ export default function NovoScreen() {
   const [photoURI, setPhotoURI] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [comment, setComment] = useState(''); // Novo estado para o comentário
+  const [comment, setComment] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
@@ -54,20 +54,17 @@ export default function NovoScreen() {
 
   const BACKEND_BASE_URL = 'https://reporta.up.railway.app/api';
 
-  // Efeito para detectar quando o teclado é mostrado ou ocultado
   useEffect(() => {
-    // Para iOS usamos keyboardWillShow para antecipar a ocultação
-    // Para Android continuamos usando keyboardDidShow
+
     const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const keyboardWillShowListener = Keyboard.addListener(
       keyboardShowEvent,
       () => {
-        // Inicia a animação para esconder a tabbar
         Animated.timing(tabbarOpacity, {
           toValue: 0,
-          duration: 150, // Duração mais curta para esconder rapidamente
+          duration: 150,
           useNativeDriver: true
         }).start();
         setKeyboardVisible(true);
@@ -77,31 +74,26 @@ export default function NovoScreen() {
     const keyboardWillHideListener = Keyboard.addListener(
       keyboardHideEvent,
       () => {
-        // Inicia a animação para mostrar a tabbar
         Animated.timing(tabbarOpacity, {
           toValue: 1,
-          duration: 200, // Um pouco mais lento ao mostrar para suavizar
+          duration: 200,
           useNativeDriver: true
         }).start();
         setKeyboardVisible(false);
       }
     );
 
-    // Cleanup function
     return () => {
       keyboardWillShowListener.remove();
       keyboardWillHideListener.remove();
     };
   }, []);
 
-  // Função para obter URL de imagem utilizando o endpoint dedicado a fotos
   const getPhotoUrl = (filename: string | null) => {
     if (!filename) return null;
 
-    // Extrai apenas o nome do arquivo, ignorando qualquer caminho
     const baseFilename = filename.split('/').pop() || filename;
 
-    // Usa o novo endpoint de API para fotos
     return `https://reporta.up.railway.app/api/photos/${baseFilename}`;
   };
 
@@ -149,7 +141,6 @@ export default function NovoScreen() {
       if (reverseGeocode && reverseGeocode.length > 0) {
         const address = reverseGeocode[0];
 
-        // Create a more complete address with all available data
         const addressComponents = [
           address.name,
           address.street,
@@ -159,7 +150,7 @@ export default function NovoScreen() {
           address.city,
           address.region,
           address.country
-        ].filter(Boolean); // Remove empty/null elements
+        ].filter(Boolean);
 
         return addressComponents.join(', ');
       }
@@ -190,13 +181,11 @@ export default function NovoScreen() {
 
       setLocationCoords(locationData);
 
-      // Get complete address from coordinates
       const address = await getAddressFromCoordinates(locationData);
 
       if (address) {
         setLocationText(address);
       } else {
-        // Fallback to coordinates
         setLocationText(`${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`);
       }
     } catch (error) {
@@ -207,11 +196,9 @@ export default function NovoScreen() {
 
   const toggleCategorySelection = (categoryId: number) => {
     setSelectedCategories(prevSelected => {
-      // If already selected, remove it
       if (prevSelected.includes(categoryId)) {
         return prevSelected.filter(id => id !== categoryId);
       }
-      // Otherwise, add it
       else {
         return [...prevSelected, categoryId];
       }
@@ -220,7 +207,6 @@ export default function NovoScreen() {
 
   const takePhoto = async () => {
     try {
-      // Solicitar permissão da câmera primeiro
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permissão negada', 'A permissão para aceder à camera é necessária para esta funcionalidade.');
@@ -245,7 +231,6 @@ export default function NovoScreen() {
 
   const pickImage = async () => {
     try {
-      // Solicitar permissão da galeria primeiro
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permissão negada', 'A permissão da galeria é necessária para esta funcionalidade.');
@@ -270,7 +255,6 @@ export default function NovoScreen() {
 
   const processImageForUpload = async (uri: string) => {
     try {
-      // Check file type
       const fileName = uri.split('/').pop() || '';
       const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
 
@@ -279,42 +263,36 @@ export default function NovoScreen() {
         return;
       }
 
-      // Check file size
       const fileInfo = await FileSystem.getInfoAsync(uri);
 
       if (fileInfo.exists) {
         const fileSizeInMB = fileInfo.size / (1024 * 1024);
         console.log(`Tamanho original da imagem: ${fileSizeInMB.toFixed(4)}MB`);
 
-        // Resize and compress the image to ensure compatibility
         console.log('Iniciando compressão da imagem...');
 
-        // First resize to a smaller size using the current API
         const resizedImage = await ImageManipulator.manipulateAsync(
           uri,
-          [{ resize: { width: 800 } }], // Slightly larger size for better quality
+          [{ resize: { width: 800 } }],
           {
             compress: 1,
             format: ImageManipulator.SaveFormat.JPEG
           }
         );
 
-        // Then compress the resized image
         const compressedImage = await ImageManipulator.manipulateAsync(
           resizedImage.uri,
-          [], // No additional manipulations
+          [],
           {
-            compress: 0.7, // 70% quality - better balance of size and quality
+            compress: 0.7,
             format: ImageManipulator.SaveFormat.JPEG
           }
         );
 
-        // Check final size
         const compressedInfo = await FileSystem.getInfoAsync(compressedImage.uri);
         const compressedSizeMB = compressedInfo.exists ? compressedInfo.size / (1024 * 1024) : 0;
         console.log(`Tamanho após compressão: ${compressedSizeMB.toFixed(4)}MB`);
 
-        // Normalize the URI for iOS
         const normalizedUri = Platform.OS === 'ios' ? compressedImage.uri.replace('file://', '') : compressedImage.uri;
         setPhotoURI(normalizedUri);
         setPhoto(normalizedUri);
@@ -348,35 +326,28 @@ export default function NovoScreen() {
         return;
       }
 
-      // Ocultar o teclado antes de enviar o report
       Keyboard.dismiss();
 
       setIsLoading(true);
 
       const token = await AsyncStorage.getItem('token');
 
-      // Criar FormData para upload multipart/form-data
       const formData = new FormData();
 
-      // Enviar endereço e coordenadas separadamente
       formData.append('address', locationText);
       formData.append('latitude', locationCoords.latitude.toString());
       formData.append('longitude', locationCoords.longitude.toString());
 
-      // Para compatibilidade com o backend atual:
       const coordsString = `${locationCoords.latitude.toFixed(6)}, ${locationCoords.longitude.toFixed(6)}`;
       const locationString = `${locationText} - Coordenadas: ${coordsString}`;
       formData.append('location', locationString);
 
-      // Adicionar comentário
       formData.append('comment', comment);
 
-      // Adicionar categorias corretamente
       selectedCategories.forEach(categoryId => {
         formData.append('category_id[]', categoryId.toString());
       });
 
-      // Configurar foto para upload
       const fileName = photoURI.split('/').pop() || 'photo.jpg';
       const fileType = fileName.endsWith('.png')
         ? 'image/png'
@@ -401,7 +372,6 @@ export default function NovoScreen() {
       });
 
       try {
-        // Fazer a requisição usando fetch
         const response = await fetch(`${BACKEND_BASE_URL}/reports`, {
           method: 'POST',
           headers: {
@@ -411,14 +381,12 @@ export default function NovoScreen() {
           body: formData
         });
 
-        // Verificar se a resposta foi bem-sucedida
         if (response.ok) {
           const data = await response.json();
           console.log('API Response:', data);
 
           Alert.alert('Success', 'Report criado com sucesso!');
 
-          // Resetar todos os estados
           setLocationText('');
           setPhoto('');
           setPhotoURI('');
@@ -431,7 +399,6 @@ export default function NovoScreen() {
             router.replace('/(app)/(tabs)');
           }, 1000);
         } else {
-          // Processar erro da API
           const errorData = await response.json();
           console.error('API Error:', errorData);
 
@@ -459,7 +426,6 @@ export default function NovoScreen() {
   }
 
   const nextStep = () => {
-    // Validate current step before proceeding
     if (currentStep === 1 && (!locationCoords || !locationText)) {
       Alert.alert('Erro', 'Por favor, selecione uma localização para continuar');
       return;
@@ -477,8 +443,11 @@ export default function NovoScreen() {
 
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
+      // Scroll para o topo quando mudar de passo
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+      }
     } else {
-      // Final step: create report
       createReport();
     }
   };
@@ -486,11 +455,14 @@ export default function NovoScreen() {
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+      // Scroll para o topo quando mudar de passo
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+      }
     }
   };
 
   const renderProgressIndicator = () => {
-    // Calculate progress based on current step
     const progress = currentStep / totalSteps;
 
     return (
@@ -511,7 +483,42 @@ export default function NovoScreen() {
     );
   };
 
-  // Step 1: Location Selection
+  // Componente de navegação para botões
+  const NavigationButtons = () => (
+    <View style={styles.navigationButtons}>
+      {currentStep > 1 && (
+        <TouchableOpacity
+          style={[styles.prevButton, {borderColor: colors.secondary}]}
+          onPress={prevStep}
+          disabled={isLoading}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.primary} />
+          <Text style={[styles.buttonText, {color: colors.primary}]}>Voltar</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        style={[
+          styles.nextButton,
+          {backgroundColor: colors.primary},
+          isLoading && {opacity: 0.7},
+          currentStep === totalSteps ? {backgroundColor: colors.primary} : null
+        ]}
+        onPress={nextStep}
+        disabled={isLoading}
+      >
+        <Text style={[styles.buttonText, {color: isDark? colors.surface : colors.textTertiary}]}>
+          {getNextButtonText()}
+        </Text>
+        {currentStep < totalSteps ? (
+          <Ionicons name="arrow-forward" size={20} color={isDark? colors.surface : colors.textTertiary} />
+        ) : (
+          <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.textTertiary} />
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderLocationStep = () => {
     return (
       <View style={styles.stepContainer}>
@@ -564,12 +571,14 @@ export default function NovoScreen() {
               </MapView>
             </View>
           )}
+
+          {/* Botões de navegação para esta etapa */}
+          <NavigationButtons />
         </View>
       </View>
     );
   };
 
-  // Step 2: Category Selection
   const renderCategoryStep = () => {
     return (
       <View style={styles.stepContainer}>
@@ -608,12 +617,14 @@ export default function NovoScreen() {
               ))}
             </View>
           )}
+
+          {/* Botões de navegação para esta etapa */}
+          <NavigationButtons />
         </View>
       </View>
     );
   };
 
-  // Step 3: Photo Upload
   const renderPhotoStep = () => {
     return (
       <View style={styles.stepContainer}>
@@ -649,12 +660,14 @@ export default function NovoScreen() {
               </View>
             )}
           </TouchableOpacity>
+
+          {/* Botões de navegação para esta etapa */}
+          <NavigationButtons />
         </View>
       </View>
     );
   };
 
-  // Novo Step 4: Comentário
   const renderCommentStep = () => {
     return (
       <View style={styles.stepContainer}>
@@ -680,8 +693,8 @@ export default function NovoScreen() {
             onChangeText={setComment}
           />
 
-          {/* Espaço adicional para evitar que o campo fique atrás do teclado */}
-          <View style={{ height: 250 }} />
+          {/* Botões de navegação para esta etapa */}
+          <NavigationButtons />
         </View>
       </View>
     );
@@ -702,7 +715,6 @@ export default function NovoScreen() {
     }
   };
 
-  // Get step title
   const getStepTitle = () => {
     switch (currentStep) {
       case 1:
@@ -718,7 +730,6 @@ export default function NovoScreen() {
     }
   };
 
-  // Get next button text
   const getNextButtonText = () => {
     if (currentStep === totalSteps) {
       return isLoading ? "A guardar..." : "Guardar Report";
@@ -735,78 +746,30 @@ export default function NovoScreen() {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={[styles.container, {backgroundColor: isDark? colors.background : colors.accent}]}>
           <SafeAreaView style={styles.safeArea}>
-            {/* Header */}
             <View style={[styles.header, {backgroundColor: isDark? colors.background : colors.accent}]}>
               <Text style={[styles.headerTitle, {color: colors.primary}]}>Criar novo report</Text>
             </View>
 
-            {/* Todo o conteúdo envolto em ScrollView para permitir rolagem */}
             <ScrollView
               ref={scrollViewRef}
               style={{ flex: 1 }}
-              contentContainerStyle={{ flexGrow: 1 }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
             >
-              {/* Progress indicator */}
               {renderProgressIndicator()}
 
-              {/* Step Title */}
               <View style={styles.stepTitleContainer}>
                 <Text style={[styles.stepTitle, {color: colors.textPrimary}]}>
                   {getStepTitle()}
                 </Text>
               </View>
 
-              {/* Current Step Content */}
               <View style={styles.content}>
                 {renderCurrentStep()}
               </View>
-
-              {/* Espaço para os botões fixos */}
-              <View style={{ height: 80 }} />
             </ScrollView>
 
-            {/* Navigation Buttons - Em posição absoluta para não ficar sob a TabBar */}
-            <View style={[
-              styles.navigationButtons,
-              {
-                position: 'absolute',
-                bottom: isKeyboardVisible ? 0 : 80,
-                left: 0,
-                right: 0,
-                zIndex: 10,
-              }
-            ]}>
-              {currentStep > 1 && (
-                <TouchableOpacity
-                  style={[styles.prevButton, {borderColor: colors.secondary}]}
-                  onPress={prevStep}
-                  disabled={isLoading}
-                >
-                  <Ionicons name="arrow-back" size={20} color={colors.primary} />
-                  <Text style={[styles.buttonText, {color: colors.primary}]}>Voltar</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={[
-                  styles.nextButton,
-                  {backgroundColor: colors.primary},
-                  isLoading && {opacity: 0.7},
-                  currentStep === totalSteps ? {backgroundColor: colors.primary} : null
-                ]}
-                onPress={nextStep}
-                disabled={isLoading}
-              >
-                <Text style={[styles.buttonText, {color: isDark? colors.surface : colors.textTertiary}]}>{getNextButtonText()}</Text>
-                {currentStep < totalSteps ? (
-                  <Ionicons name="arrow-forward" size={20} color={ isDark? colors.surface : colors.textTertiary} />
-                ) : (
-                  <Ionicons name="save-outline" size={20} color={isDark? colors.surface : colors.textTertiary} />
-                )}
-              </TouchableOpacity>
-            </View>
           </SafeAreaView>
 
           {/* Location Options Modal */}
@@ -1010,6 +973,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 15,
     justifyContent: 'space-around',
+    marginTop: 20,
   },
   prevButton: {
     borderWidth: 1,
@@ -1067,6 +1031,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#ddd',
+    marginBottom: 20,
   },
   miniMap: {
     width: '100%',
@@ -1076,6 +1041,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -5,
+    marginBottom: 20,
   },
   categoryChip: {
     borderRadius: 20,
@@ -1093,6 +1059,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     overflow: 'hidden',
+    marginBottom: 20,
   },
   photoPlaceholder: {
     width: '100%',
@@ -1138,6 +1105,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     minHeight: 150,
+    marginBottom: 20,
   },
   modalOverlay: {
     position: 'absolute',
