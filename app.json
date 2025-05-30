@@ -21,7 +21,7 @@
       "bundleIdentifier": "pt.diogotavares.reporta",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "O Repporta precisa da sua localização para registar a localização do seu reports",
+        "NSLocationWhenInUseUsageDescription": "O Reporta precisa da sua localização para registar a localização do seu reports",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "O Reporta precisa da sua localização para registar a localização do seu reports",
         "NSCameraUsageDescription": "O Reporta usa a camera para capturar fotos para os seus reports",
         "NSPhotoLibraryUsageDescription": "O Reporta acede à sua galeria para selecionar fotos para os reports",
