@@ -385,7 +385,7 @@ export default function NovoScreen() {
           const data = await response.json();
           console.log('API Response:', data);
 
-          Alert.alert('Success', 'Report criado com sucesso!');
+          Alert.alert('Sucesso', 'Report criado com sucesso!');
 
           setLocationText('');
           setPhoto('');

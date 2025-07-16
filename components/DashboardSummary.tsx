@@ -26,7 +26,7 @@ const DashboardSummary = ({ reports }: { reports: UserReport[], colors: any }) =
       total,
       pendentes: statusCounts['pendente'] || 0,
       resolvidos: statusCounts['resolvido'] || 0,
-      emResolucao: statusCounts['em resolução'] || 0,
+      emResolucao: statusCounts['em análise'] || 0,
     };
   }, [reports]);
 

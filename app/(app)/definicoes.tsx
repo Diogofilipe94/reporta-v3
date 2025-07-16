@@ -196,7 +196,7 @@ export default function DefinicoesScreen() {
 
           {/* Configurações de Idioma */}
           <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
-            <Text style={[styles.sectionTitle, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
+ {/*            <Text style={[styles.sectionTitle, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
               IDIOMA
             </Text>
 
@@ -227,7 +227,7 @@ export default function DefinicoesScreen() {
                   {language.name}
                 </Text>
               </TouchableOpacity>
-            ))}
+            ))} */}
           </View>
 
           {/* Botão para terminar sessão */}

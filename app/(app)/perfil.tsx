@@ -231,7 +231,7 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 <Text style={[styles.reportLabel, { color: isDark ? '#ccc' : '#666' }]}>
-                  Em Resolução
+                  Em Análise
                 </Text>
               </View>
 
