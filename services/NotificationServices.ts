@@ -37,13 +37,13 @@ export class NotificationService {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
-    // Se não temos permissão, solicitar ao usuário
+    // Se não temos permissão, solicitar ao utilizador
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
 
-    // Se o usuário não concedeu permissão, não podemos continuar
+    // Se o utilizador não concedeu permissão, não podemos continuar
     if (finalStatus !== 'granted') {
       console.log('Permissão para notificações não concedida');
       return undefined;
@@ -186,7 +186,7 @@ export class NotificationService {
       }
     });
 
-    // Listener para quando o usuário interage com uma notificação
+    // Listener para quando o utilizador interage com uma notificação
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('Resposta de notificação recebida:', response);
 

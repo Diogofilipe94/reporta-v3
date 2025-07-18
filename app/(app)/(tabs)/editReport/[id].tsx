@@ -458,7 +458,7 @@ export default function EditReportScreen() {
         const locationString = `${locationText} - ${coordsString}`;
         formData.append('location', locationString);
       } else if (report && report.location) {
-        // Se o usuário não selecionou uma nova localização, manter a existente
+        // Se o utilizador não selecionou uma nova localização, manter a existente
         formData.append('location', report.location);
 
         const coords = extractCoordinates(report.location);
@@ -482,13 +482,13 @@ export default function EditReportScreen() {
         formData.append('category_id[]', categoryId.toString());
       });
 
-      // Verificar se o usuário selecionou uma nova foto (URI local, não URL)
+      // Verificar se o utilizador selecionou uma nova foto (URI local, não URL)
       const isNewPhotoSelected = photoURI &&
                                !photoURI.includes(BACKEND_BASE_URL) &&
                                !photoURI.includes('http');
 
       if (isNewPhotoSelected) {
-        // Usuário selecionou uma nova foto
+        // utilizador selecionou uma nova foto
         const fileName = photoURI.split('/').pop() || 'photo.jpg';
         const fileType = fileName.endsWith('.png')
           ? 'image/png'
@@ -529,7 +529,7 @@ export default function EditReportScreen() {
         }
       } else {
         console.log('Mantendo a foto existente, não enviando nova imagem');
-        // Se o usuário não está enviando uma nova foto, não incluímos nenhum campo de foto
+        // Se o utilizador não está enviando uma nova foto, não incluímos nenhum campo de foto
         // O backend manterá a foto existente por padrão
       }
 

@@ -49,9 +49,9 @@ export default function useNotification() {
         }
       },
 
-      // Quando o usuário interage com uma notificação
+      // Quando o utilizador interage com uma notificação
       (response) => {
-        console.log('Usuário interagiu com notificação:', response);
+        console.log('utilizador interagiu com notificação:', response);
         const data = response.notification.request.content.data;
 
         if (data) {

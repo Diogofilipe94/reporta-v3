@@ -6,6 +6,8 @@ import { useEffect } from 'react';
 import { useTabContext } from '../contexts/TabContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import Fontisto from '@expo/vector-icons/Fontisto';
+import Feather from '@expo/vector-icons/Feather';
+
 
 
 export default function CustomTabBar() {
@@ -89,8 +91,8 @@ export default function CustomTabBar() {
           onPress={goToNew}
           activeOpacity={0.7}
         >
-          <Fontisto
-            name="plus-a"
+          <Feather
+            name="plus"
             size={24}
             color={isDark? colors.background : colors.primary}
             style={styles.icon}

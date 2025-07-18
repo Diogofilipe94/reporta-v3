@@ -149,7 +149,7 @@ export default function ReportDetailsScreen() {
         // Reset image error when loading new report
         setImageError(false);
       } catch (error) {
-        console.error('Erro ao buscar detalhes do report:', error);
+        console.error('Erro ao encontrar detalhes do report:', error);
         setError('Não foi possível carregar os detalhes. Tente novamente.');
       } finally {
         setIsLoading(false);
@@ -159,7 +159,6 @@ export default function ReportDetailsScreen() {
     fetchReportDetails();
   }, [id]);
 
-  // Excluir report
   const deleteReport = async () => {
     if (!report || !id) return;
 
@@ -187,12 +186,12 @@ export default function ReportDetailsScreen() {
 
       Alert.alert(
         'Sucesso',
-        'Report excluído com sucesso!',
+        'Report apagado com sucesso!',
         [{ text: 'OK', onPress: () => router.replace('/(app)/(tabs)') }]
       );
     } catch (error: any) {
-      console.error('Erro ao excluir report:', error);
-      Alert.alert('Erro', error.message || 'Não foi possível excluir o report. Tente novamente.');
+      console.error('Erro ao apagar report:', error);
+      Alert.alert('Erro', error.message || 'Não foi possível apagar o report. Tente novamente.');
     } finally {
       setActionInProgress(false);
       setShowDeleteConfirm(false);
@@ -327,7 +326,7 @@ export default function ReportDetailsScreen() {
                   report.categories.map((category, index) => (
                     <View
                       key={index}
-                      style={[styles.categoryChip, { backgroundColor: isDark ? colors.surface : colors.accent }]}
+                        style={[styles.categoryChip, { backgroundColor: isDark ? colors.surface : colors.accent, borderColor: isDark ? colors.primary : colors.textSecondary }]}
                     >
                       <Text style={[styles.categoryText, { color: isDark ? colors.accent : colors.textPrimary }]}>
                         {capitalizeText(category.category)}
@@ -595,6 +594,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 8,
     marginBottom: 8,
+    borderWidth: 1,
   },
   categoryText: {
     fontSize: 14,

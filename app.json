@@ -86,18 +86,7 @@
       ],
       "expo-notifications",
       "expo-file-system",
-      "expo-image-manipulator",
-      [
-        "react-native-maps",
-        {
-          "android": {
-            "googleMapsApiKey": "YOUR_ANDROID_GOOGLE_MAPS_API_KEY"
-          },
-          "ios": {
-            "googleMapsApiKey": "YOUR_IOS_GOOGLE_MAPS_API_KEY"
-          }
-        }
-      ]
+
     ],
     "experiments": {
       "typedRoutes": true

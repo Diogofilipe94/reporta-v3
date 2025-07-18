@@ -97,7 +97,7 @@ export default function RootLayout() {
     });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Usuário interagiu com notificação:', response);
+      console.log('O utilizador interagiu com notificação:', response);
       const data = response.notification.request.content.data;
 
       handleNotificationNavigation(data);

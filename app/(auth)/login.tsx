@@ -45,11 +45,11 @@ export default function LoginScreen() {
         console.log("Token guardado:", data.token);
         router.replace('/(app)/(tabs)');
       } else {
-        setError(data.message || 'Utilizador ou password inválidos');
+        setError('Utilizador ou password inválidos');
       }
     } catch (error) {
-      setError('Utilizador ou password inválidos');
       console.error(error);
+      setError('Utilizador ou password inválidos');
     } finally {
       setIsLoading(false);
     }
