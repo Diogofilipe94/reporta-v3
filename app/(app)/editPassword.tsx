@@ -83,7 +83,7 @@ export default function EditarPasswordScreen() {
     };
   }, []);
 
-  // Função para rolar a tela para um campo específico
+  // Função para rolar o ecra para um campo específico
   const focusOnInput = (y: number) => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: y, animated: true });
@@ -98,7 +98,7 @@ export default function EditarPasswordScreen() {
     }));
   };
 
-  // Função para voltar à tela anterior
+  // Função para voltar o ecra anterior
   const goBack = () => {
     router.navigate('/(app)/definicoes');
   };

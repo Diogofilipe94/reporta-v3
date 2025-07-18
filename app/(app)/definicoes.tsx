@@ -194,7 +194,7 @@ export default function DefinicoesScreen() {
             </View>
           </View>
 
-          {/* Configurações de Idioma */}
+          {/* Configurações de Idioma da aplicação. De momento não está implementado, deixar comentado */}
           <View style={[styles.section, { backgroundColor: isDark ? colors.surface : colors.surface }]}>
  {/*            <Text style={[styles.sectionTitle, { color: isDark ? colors.textSecondary : colors.textSecondary }]}>
               IDIOMA
